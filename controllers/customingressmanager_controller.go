@@ -48,7 +48,7 @@ func (r *CustomIngressManagerReconciler) Reconcile(req ctrl.Request) (ctrl.Resul
 	if err := r.Get(ctx, req.NamespacedName, &service); err != nil {
 		log.Error(err, "Unable to fetch the Service")
 
-		var existingIngressPointer, innerError = GetIngressPointerByServiceNameName(r, req.NamespacedName.Name)
+		var existingIngressPointer, innerError = GetIngressAddressByServiceNameName(r, req.NamespacedName.Name)
 
 		if innerError != nil {
 			return ctrl.Result{}, innerError
@@ -105,7 +105,7 @@ func (r *CustomIngressManagerReconciler) Reconcile(req ctrl.Request) (ctrl.Resul
 
 		fmt.Println("Try to create ingress")
 
-		var existingIngressPointer, innerError = GetIngressPointerByServiceNameName(r, "testsvc")
+		var existingIngressPointer, innerError = GetIngressAddressByServiceNameName(r, service.Name)
 
 		if innerError != nil {
 			return ctrl.Result{}, innerError
@@ -135,7 +135,7 @@ func (r *CustomIngressManagerReconciler) SetupWithManager(mgr ctrl.Manager) erro
 		Complete(r)
 }
 
-func GetIngressPointerByServiceNameName(r *CustomIngressManagerReconciler, serviceName string) (*v1beta1.Ingress, error) {
+func GetIngressAddressByServiceNameName(r *CustomIngressManagerReconciler, serviceName string) (*v1beta1.Ingress, error) {
 
 	ctx := context.Background()
 	var currentIngresses v1beta1.IngressList
