@@ -1,0 +1,24 @@
+# permissions for end users to edit customingressmanagers.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: customingressmanager-editor-role
+rules:
+- apiGroups:
+  - webapp.feladat.banzaicloud.io
+  resources:
+  - customingressmanagers
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - webapp.feladat.banzaicloud.io
+  resources:
+  - customingressmanagers/status
+  verbs:
+  - get

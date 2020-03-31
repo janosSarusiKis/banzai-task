@@ -1,0 +1,7 @@
+apiVersion: webapp.feladat.banzaicloud.io/v1
+kind: CustomIngressManager
+metadata:
+  name: customingressmanager-sample
+spec:
+  # Add fields here
+  foo: bar

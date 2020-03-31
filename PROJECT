@@ -1,0 +1,7 @@
+domain: feladat.banzaicloud.io
+repo: customingressmanager
+resources:
+- group: webapp
+  kind: CustomIngressManager
+  version: v1
+version: "2"
