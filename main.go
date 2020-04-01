@@ -28,6 +28,8 @@ import (
 
 	webappv1 "customingressmanager/api/v1"
 	"customingressmanager/controllers"
+
+	v1alpha3 "github.com/jetstack/cert-manager/pkg/apis/certmanager/v1alpha3"
 	// +kubebuilder:scaffold:imports
 )
 
@@ -40,6 +42,8 @@ func init() {
 	_ = clientgoscheme.AddToScheme(scheme)
 
 	_ = webappv1.AddToScheme(scheme)
+
+	_ = v1alpha3.AddToScheme(scheme)
 	// +kubebuilder:scaffold:scheme
 }
 

@@ -24,16 +24,24 @@ import (
 	isd "github.com/jbenet/go-is-domain"
 
 	"github.com/go-logr/logr"
+	cmacme "github.com/jetstack/cert-manager/pkg/apis/acme/v1alpha3"
+	v1alpha3 "github.com/jetstack/cert-manager/pkg/apis/certmanager/v1alpha3"
 	corev1 "k8s.io/api/core/v1"
 	v1beta1 "k8s.io/api/extensions/v1beta1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+
+	// v1alpha2 "github.com/jetstack/cert-manager/pkg/apis/certmanager/v1alpha2"
+
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-const DomainLabel = "domain"
+const (
+	DomainLabel = "domain"
+	EmailLabel  = "email"
+)
 
 // CustomIngressManagerReconciler reconciles a CustomIngressManager object
 type CustomIngressManagerReconciler struct {
@@ -53,49 +61,68 @@ func (r *CustomIngressManagerReconciler) Reconcile(req ctrl.Request) (ctrl.Resul
 	if err := r.Get(ctx, req.NamespacedName, &service); err != nil {
 		log.Error(err, "Unable to fetch the Service")
 
-		var existingIngressPointer, innerError = GetIngressAddressByServiceName(r, req.NamespacedName.Name)
+		var existingIngressPointer, innerIngressError = GetIngressAddressByServiceName(r, req.NamespacedName.Name+"-ingress")
+		var existingClusterIssuerPointer, innerClusterIssuerError = GetIngressAddressByServiceName(r, req.NamespacedName.Name+"-lets-encrypt-staging")
 
-		if innerError != nil {
-			return ctrl.Result{}, innerError
+		if innerIngressError != nil {
+			return ctrl.Result{}, innerIngressError
+		}
+
+		if innerClusterIssuerError != nil {
+			return ctrl.Result{}, innerIngressError
 		}
 
 		if existingIngressPointer != nil {
 			r.Delete(ctx, existingIngressPointer)
 		}
 
+		if existingClusterIssuerPointer != nil {
+			r.Delete(ctx, existingClusterIssuerPointer)
+		}
+
 		return ctrl.Result{}, client.IgnoreNotFound(err)
 	}
 
-	var currentIngresses v1beta1.IngressList
-	if err := r.List(ctx, &currentIngresses); err != nil {
-		return ctrl.Result{}, err
-	}
-
 	if IsValidService(&service) {
-		var ingress = v1beta1.Ingress{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:        service.Name + "-ingress",
-				Namespace:   service.Namespace,
-				Annotations: map[string]string{"cert-manager.io/cluster-issuer": "test-selfsigned"},
-			},
-			Spec: v1beta1.IngressSpec{
-				TLS: []v1beta1.IngressTLS{
-					{
-						Hosts:      []string{service.ObjectMeta.Annotations[DomainLabel]},
-						SecretName: service.Name + "-secret",
-					},
+		fmt.Println("Check if ingress already exists")
+
+		var existingIngressPointer, innerIngressError = GetIngressAddressByServiceName(r, service.Name+"-ingress")
+		var existingClusterIssuerPointer, innerClusterIssuerError = GetIngressAddressByServiceName(r, service.Name+"-lets-encrypt-staging")
+
+		if innerIngressError != nil {
+			return ctrl.Result{}, innerIngressError
+		}
+
+		if innerClusterIssuerError != nil {
+			return ctrl.Result{}, innerClusterIssuerError
+		}
+
+		if existingIngressPointer == nil {
+			var ingress = v1beta1.Ingress{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:        service.Name + "-ingress",
+					Namespace:   service.Namespace,
+					Annotations: map[string]string{"cert-manager.io/cluster-issuer": service.Name + "-lets-encrypt-staging"},
 				},
-				Rules: []v1beta1.IngressRule{
-					{
-						Host: service.ObjectMeta.Annotations[DomainLabel],
-						IngressRuleValue: v1beta1.IngressRuleValue{
-							HTTP: &v1beta1.HTTPIngressRuleValue{
-								Paths: []v1beta1.HTTPIngressPath{
-									{
-										Path: "/",
-										Backend: v1beta1.IngressBackend{
-											ServiceName: service.Name,
-											ServicePort: intstr.FromInt(80),
+				Spec: v1beta1.IngressSpec{
+					TLS: []v1beta1.IngressTLS{
+						{
+							Hosts:      []string{service.ObjectMeta.Annotations[DomainLabel]},
+							SecretName: service.Name + "-secret",
+						},
+					},
+					Rules: []v1beta1.IngressRule{
+						{
+							Host: service.ObjectMeta.Annotations[DomainLabel],
+							IngressRuleValue: v1beta1.IngressRuleValue{
+								HTTP: &v1beta1.HTTPIngressRuleValue{
+									Paths: []v1beta1.HTTPIngressPath{
+										{
+											Path: "/",
+											Backend: v1beta1.IngressBackend{
+												ServiceName: service.Name,
+												ServicePort: intstr.FromInt(80),
+											},
 										},
 									},
 								},
@@ -103,30 +130,46 @@ func (r *CustomIngressManagerReconciler) Reconcile(req ctrl.Request) (ctrl.Resul
 						},
 					},
 				},
-			},
+			}
+
+			if err := r.Create(ctx, &ingress); err != nil {
+				log.Error(err, "unable to create the Ingress")
+				// we'll ignore not-found errors, since they can't be fixed by an immediate
+				// requeue (we'll need to wait for a new notification), and we can get them
+				// on deleted requests.
+				return ctrl.Result{}, client.IgnoreNotFound(err)
+			}
+
+			fmt.Println("Ingress created")
 		}
 
-		fmt.Println("Try to create ingress")
+		if existingClusterIssuerPointer == nil {
+			fmt.Println("Try to create clusterissuer")
+			var clusterIssuer = v1alpha3.ClusterIssuer{
 
-		var existingIngressPointer, innerError = GetIngressAddressByServiceName(r, service.Name)
-
-		if innerError != nil {
-			return ctrl.Result{}, innerError
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      service.Name + "-lets-encrypt-staging",
+					Namespace: service.Namespace,
+				},
+				Spec: v1alpha3.IssuerSpec{
+					IssuerConfig: v1alpha3.IssuerConfig{
+						ACME: &cmacme.ACMEIssuer{
+							Server: "https://acme-staging.api.letsencrypt.org/directory",
+							Email:  service.ObjectMeta.Annotations[EmailLabel],
+						},
+					},
+				},
+			}
+			fmt.Println("Try to create ingress")
+			if err := r.Create(ctx, &clusterIssuer); err != nil {
+				log.Error(err, "unable to create the Cluster issuer")
+				// we'll ignore not-found errors, since they can't be fixed by an immediate
+				// requeue (we'll need to wait for a new notification), and we can get them
+				// on deleted requests.
+				return ctrl.Result{}, client.IgnoreNotFound(err)
+			}
 		}
 
-		if existingIngressPointer != nil {
-			return ctrl.Result{}, nil
-		}
-
-		if err := r.Create(ctx, &ingress); err != nil {
-			log.Error(err, "unable to create the Ingress")
-			// we'll ignore not-found errors, since they can't be fixed by an immediate
-			// requeue (we'll need to wait for a new notification), and we can get them
-			// on deleted requests.
-			return ctrl.Result{}, client.IgnoreNotFound(err)
-		}
-
-		fmt.Println("Ingress created")
 	}
 
 	return ctrl.Result{}, nil
@@ -138,7 +181,7 @@ func (r *CustomIngressManagerReconciler) SetupWithManager(mgr ctrl.Manager) erro
 		Complete(r)
 }
 
-func GetIngressAddressByServiceName(r *CustomIngressManagerReconciler, serviceName string) (*v1beta1.Ingress, error) {
+func GetIngressAddressByServiceName(r *CustomIngressManagerReconciler, ingressName string) (*v1beta1.Ingress, error) {
 
 	ctx := context.Background()
 	var currentIngresses v1beta1.IngressList
@@ -147,7 +190,7 @@ func GetIngressAddressByServiceName(r *CustomIngressManagerReconciler, serviceNa
 	}
 
 	for i := range currentIngresses.Items {
-		if currentIngresses.Items[i].ObjectMeta.Name == serviceName+"-ingress" {
+		if currentIngresses.Items[i].ObjectMeta.Name == ingressName {
 			fmt.Println("Ingress already there")
 
 			var ingress v1beta1.Ingress = currentIngresses.Items[i]
@@ -159,11 +202,31 @@ func GetIngressAddressByServiceName(r *CustomIngressManagerReconciler, serviceNa
 	return nil, nil
 }
 
+func GetClusterIssuerAddressByServiceName(r *CustomIngressManagerReconciler, clusterIssuerName string) (*v1alpha3.ClusterIssuer, error) {
+
+	ctx := context.Background()
+	var currentClusterIssuers v1alpha3.ClusterIssuerList
+	if err := r.List(ctx, &currentClusterIssuers); err != nil {
+		return nil, err
+	}
+
+	for i := range currentClusterIssuers.Items {
+		if currentClusterIssuers.Items[i].ObjectMeta.Name == clusterIssuerName+"-ingress" {
+			fmt.Println("ClusterIssuer already there")
+
+			var clusterIssuer v1alpha3.ClusterIssuer = currentClusterIssuers.Items[i]
+
+			return &clusterIssuer, nil
+		}
+	}
+
+	return nil, nil
+}
+
 func IsValidService(service *corev1.Service) bool {
 	const (
 		customIngressLabel      = "feladat.banzaicloud.io/ingress"
 		customIngressLabelValue = "secure"
-		emailLabel              = "email"
 	)
 
 	regExValidaton := regexp.MustCompile("^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$")
@@ -182,7 +245,7 @@ func IsValidService(service *corev1.Service) bool {
 		return false
 	}
 
-	if emailLabelValue, result := service.ObjectMeta.Annotations[emailLabel]; !result || !regExValidaton.MatchString(emailLabelValue) {
+	if emailLabelValue, result := service.ObjectMeta.Annotations[EmailLabel]; !result || !regExValidaton.MatchString(emailLabelValue) {
 		fmt.Println("Invalid email address: " + emailLabelValue)
 
 		return false
