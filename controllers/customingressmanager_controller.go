@@ -19,6 +19,9 @@ package controllers
 import (
 	"context"
 	"fmt"
+	"regexp"
+
+	isd "github.com/jbenet/go-is-domain"
 
 	"github.com/go-logr/logr"
 	corev1 "k8s.io/api/core/v1"
@@ -162,12 +165,15 @@ func IsValidService(service *corev1.Service) bool {
 		EmailLabel              = "email"
 	)
 
+	regExValidaton := regexp.MustCompile("^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$")
+
 	fmt.Println("Validating service")
-	if domainLabelValue, ok := service.ObjectMeta.Labels[DomainLabel]; !ok && domainLabelValue == "" {
+
+	if domainLabelValue, ok := service.ObjectMeta.Labels[DomainLabel]; !ok && isd.IsDomain(domainLabelValue) {
 		return false
 	}
 
-	if emailLabelValue, ok := service.ObjectMeta.Labels[EmailLabel]; !ok && emailLabelValue == "" {
+	if emailLabelValue, ok := service.ObjectMeta.Labels[EmailLabel]; !ok && regExValidaton.MatchString(emailLabelValue) {
 		return false
 	}
 
