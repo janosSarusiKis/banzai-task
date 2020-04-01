@@ -175,14 +175,14 @@ func IsValidService(service *corev1.Service) bool {
 		return false
 	}
 
-	if domainLabelValue, result := service.ObjectMeta.Labels[DomainLabel]; !result || isd.IsDomain(domainLabelValue) {
-		fmt.Println("Invalid domain name")
+	if domainLabelValue, result := service.ObjectMeta.Annotations[DomainLabel]; !result || !isd.IsDomain(domainLabelValue) {
+		fmt.Println("Invalid domain name: " + domainLabelValue)
 
 		return false
 	}
 
-	if emailLabelValue, result := service.ObjectMeta.Labels[EmailLabel]; !result || regExValidaton.MatchString(emailLabelValue) {
-		fmt.Println("Invalid email address")
+	if emailLabelValue, result := service.ObjectMeta.Annotations[EmailLabel]; !result || !regExValidaton.MatchString(emailLabelValue) {
+		fmt.Println("Invalid email address: " + emailLabelValue)
 
 		return false
 	}

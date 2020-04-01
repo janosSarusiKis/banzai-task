@@ -4,7 +4,10 @@ metadata:
   name: testsvc
   labels:
     feladat.banzaicloud.io/ingress: secure
-    cica: mica23
+    cica: mica
+  annotations:
+    domain: example.com
+    email: test@example.com
 spec:
   selector:
     app: MyApp
