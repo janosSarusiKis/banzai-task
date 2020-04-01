@@ -97,6 +97,32 @@ func (r *CustomIngressManagerReconciler) Reconcile(req ctrl.Request) (ctrl.Resul
 			return ctrl.Result{}, innerClusterIssuerError
 		}
 
+		if existingClusterIssuerPointer == nil {
+			var clusterIssuer = v1alpha3.ClusterIssuer{
+
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      service.Name + "-lets-encrypt-staging",
+					Namespace: service.Namespace,
+				},
+				Spec: v1alpha3.IssuerSpec{
+					IssuerConfig: v1alpha3.IssuerConfig{
+						ACME: &cmacme.ACMEIssuer{
+							Server: "https://acme-staging.api.letsencrypt.org/directory",
+							Email:  service.ObjectMeta.Annotations[EmailLabel],
+						},
+					},
+				},
+			}
+			fmt.Println("Try to create ClusterIssuer")
+			if err := r.Create(ctx, &clusterIssuer); err != nil {
+				log.Error(err, "unable to create the Cluster issuer")
+				// we'll ignore not-found errors, since they can't be fixed by an immediate
+				// requeue (we'll need to wait for a new notification), and we can get them
+				// on deleted requests.
+				return ctrl.Result{}, client.IgnoreNotFound(err)
+			}
+		}
+
 		if existingIngressPointer == nil {
 			var ingress = v1beta1.Ingress{
 				ObjectMeta: metav1.ObjectMeta{
@@ -132,6 +158,7 @@ func (r *CustomIngressManagerReconciler) Reconcile(req ctrl.Request) (ctrl.Resul
 				},
 			}
 
+			fmt.Println("Try to create Ingress")
 			if err := r.Create(ctx, &ingress); err != nil {
 				log.Error(err, "unable to create the Ingress")
 				// we'll ignore not-found errors, since they can't be fixed by an immediate
@@ -142,34 +169,6 @@ func (r *CustomIngressManagerReconciler) Reconcile(req ctrl.Request) (ctrl.Resul
 
 			fmt.Println("Ingress created")
 		}
-
-		if existingClusterIssuerPointer == nil {
-			fmt.Println("Try to create clusterissuer")
-			var clusterIssuer = v1alpha3.ClusterIssuer{
-
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      service.Name + "-lets-encrypt-staging",
-					Namespace: service.Namespace,
-				},
-				Spec: v1alpha3.IssuerSpec{
-					IssuerConfig: v1alpha3.IssuerConfig{
-						ACME: &cmacme.ACMEIssuer{
-							Server: "https://acme-staging.api.letsencrypt.org/directory",
-							Email:  service.ObjectMeta.Annotations[EmailLabel],
-						},
-					},
-				},
-			}
-			fmt.Println("Try to create ingress")
-			if err := r.Create(ctx, &clusterIssuer); err != nil {
-				log.Error(err, "unable to create the Cluster issuer")
-				// we'll ignore not-found errors, since they can't be fixed by an immediate
-				// requeue (we'll need to wait for a new notification), and we can get them
-				// on deleted requests.
-				return ctrl.Result{}, client.IgnoreNotFound(err)
-			}
-		}
-
 	}
 
 	return ctrl.Result{}, nil
