@@ -147,7 +147,7 @@ func GetIngressAddressByServiceName(r *CustomIngressManagerReconciler, serviceNa
 	}
 
 	for i := range currentIngresses.Items {
-		if currentIngresses.Items[i].Spec.Backend.ServiceName == serviceName {
+		if currentIngresses.Items[i].ObjectMeta.Name == serviceName+"-ingress" {
 			fmt.Println("Ingress already there")
 
 			var ingress v1beta1.Ingress = currentIngresses.Items[i]
