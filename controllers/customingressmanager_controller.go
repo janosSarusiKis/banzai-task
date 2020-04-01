@@ -30,13 +30,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-const (
-	CustomIngressLabel      = "feladat.banzaicloud.io/ingress"
-	CustomIngressLabelValue = "secure"
-	DomainLabel             = "domain"
-	EmailLabel              = "email"
-)
-
 // CustomIngressManagerReconciler reconciles a CustomIngressManager object
 type CustomIngressManagerReconciler struct {
 	client.Client
@@ -55,7 +48,7 @@ func (r *CustomIngressManagerReconciler) Reconcile(req ctrl.Request) (ctrl.Resul
 	if err := r.Get(ctx, req.NamespacedName, &service); err != nil {
 		log.Error(err, "Unable to fetch the Service")
 
-		var existingIngressPointer, innerError = GetIngressAddressByServiceNameName(r, req.NamespacedName.Name)
+		var existingIngressPointer, innerError = GetIngressAddressByServiceName(r, req.NamespacedName.Name)
 
 		if innerError != nil {
 			return ctrl.Result{}, innerError
@@ -73,34 +66,31 @@ func (r *CustomIngressManagerReconciler) Reconcile(req ctrl.Request) (ctrl.Resul
 		return ctrl.Result{}, err
 	}
 
-	if customIngressLabelValue, ok := service.ObjectMeta.Labels[CustomIngressLabel]; ok {
-		fmt.Println(CustomIngressLabel + " - Service with label was found. Value: " + customIngressLabelValue)
-		if customIngressLabelValue == CustomIngressLabelValue {
-			var ingress = v1beta1.Ingress{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:        service.Name + "-ingress",
-					Namespace:   service.Namespace,
-					Annotations: map[string]string{"cert-manager.io/cluster-issuer": "test-selfsigned"},
-				},
-				Spec: v1beta1.IngressSpec{
-					TLS: []v1beta1.IngressTLS{
-						{
-							Hosts:      []string{"example.com"},
-							SecretName: service.Name + "-secret",
-						},
+	if IsValidService(&service) {
+		var ingress = v1beta1.Ingress{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:        service.Name + "-ingress",
+				Namespace:   service.Namespace,
+				Annotations: map[string]string{"cert-manager.io/cluster-issuer": "test-selfsigned"},
+			},
+			Spec: v1beta1.IngressSpec{
+				TLS: []v1beta1.IngressTLS{
+					{
+						Hosts:      []string{"example.com"},
+						SecretName: service.Name + "-secret",
 					},
-					Rules: []v1beta1.IngressRule{
-						{
-							Host: "test.com",
-							IngressRuleValue: v1beta1.IngressRuleValue{
-								HTTP: &v1beta1.HTTPIngressRuleValue{
-									Paths: []v1beta1.HTTPIngressPath{
-										{
-											Path: "/",
-											Backend: v1beta1.IngressBackend{
-												ServiceName: service.Name,
-												ServicePort: intstr.FromInt(80),
-											},
+				},
+				Rules: []v1beta1.IngressRule{
+					{
+						Host: "test.com",
+						IngressRuleValue: v1beta1.IngressRuleValue{
+							HTTP: &v1beta1.HTTPIngressRuleValue{
+								Paths: []v1beta1.HTTPIngressPath{
+									{
+										Path: "/",
+										Backend: v1beta1.IngressBackend{
+											ServiceName: service.Name,
+											ServicePort: intstr.FromInt(80),
 										},
 									},
 								},
@@ -108,30 +98,30 @@ func (r *CustomIngressManagerReconciler) Reconcile(req ctrl.Request) (ctrl.Resul
 						},
 					},
 				},
-			}
-
-			fmt.Println("Try to create ingress")
-
-			var existingIngressPointer, innerError = GetIngressAddressByServiceNameName(r, service.Name)
-
-			if innerError != nil {
-				return ctrl.Result{}, innerError
-			}
-
-			if existingIngressPointer != nil {
-				return ctrl.Result{}, nil
-			}
-
-			if err := r.Create(ctx, &ingress); err != nil {
-				log.Error(err, "unable to create the Ingress")
-				// we'll ignore not-found errors, since they can't be fixed by an immediate
-				// requeue (we'll need to wait for a new notification), and we can get them
-				// on deleted requests.
-				return ctrl.Result{}, client.IgnoreNotFound(err)
-			}
-
-			fmt.Println("Ingress created")
+			},
 		}
+
+		fmt.Println("Try to create ingress")
+
+		var existingIngressPointer, innerError = GetIngressAddressByServiceName(r, service.Name)
+
+		if innerError != nil {
+			return ctrl.Result{}, innerError
+		}
+
+		if existingIngressPointer != nil {
+			return ctrl.Result{}, nil
+		}
+
+		if err := r.Create(ctx, &ingress); err != nil {
+			log.Error(err, "unable to create the Ingress")
+			// we'll ignore not-found errors, since they can't be fixed by an immediate
+			// requeue (we'll need to wait for a new notification), and we can get them
+			// on deleted requests.
+			return ctrl.Result{}, client.IgnoreNotFound(err)
+		}
+
+		fmt.Println("Ingress created")
 	}
 
 	return ctrl.Result{}, nil
@@ -143,7 +133,7 @@ func (r *CustomIngressManagerReconciler) SetupWithManager(mgr ctrl.Manager) erro
 		Complete(r)
 }
 
-func GetIngressAddressByServiceNameName(r *CustomIngressManagerReconciler, serviceName string) (*v1beta1.Ingress, error) {
+func GetIngressAddressByServiceName(r *CustomIngressManagerReconciler, serviceName string) (*v1beta1.Ingress, error) {
 
 	ctx := context.Background()
 	var currentIngresses v1beta1.IngressList
@@ -162,4 +152,29 @@ func GetIngressAddressByServiceNameName(r *CustomIngressManagerReconciler, servi
 	}
 
 	return nil, nil
+}
+
+func IsValidService(service *corev1.Service) bool {
+	const (
+		CustomIngressLabel      = "feladat.banzaicloud.io/ingress"
+		CustomIngressLabelValue = "secure"
+		DomainLabel             = "domain"
+		EmailLabel              = "email"
+	)
+
+	fmt.Println("Validating service")
+	if domainLabelValue, ok := service.ObjectMeta.Labels[DomainLabel]; !ok && domainLabelValue == "" {
+		return false
+	}
+
+	if emailLabelValue, ok := service.ObjectMeta.Labels[EmailLabel]; !ok && emailLabelValue == "" {
+		return false
+	}
+
+	if customIngressLabelValue, ok := service.ObjectMeta.Labels[CustomIngressLabel]; !ok || customIngressLabelValue == CustomIngressLabelValue {
+		return false
+	}
+
+	fmt.Println("Valid service found")
+	return true
 }
