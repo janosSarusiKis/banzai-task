@@ -30,8 +30,6 @@ import (
 	v1beta1 "k8s.io/api/extensions/v1beta1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	// v1alpha2 "github.com/jetstack/cert-manager/pkg/apis/certmanager/v1alpha2"
-
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -191,7 +189,6 @@ func GetIngressAddressByServiceName(r *CustomIngressManagerReconciler, ingressNa
 	for i := range currentIngresses.Items {
 		if currentIngresses.Items[i].ObjectMeta.Name == ingressName {
 			fmt.Println("Ingress already there")
-
 			var ingress v1beta1.Ingress = currentIngresses.Items[i]
 
 			return &ingress, nil
@@ -212,7 +209,6 @@ func GetClusterIssuerAddressByServiceName(r *CustomIngressManagerReconciler, clu
 	for i := range currentClusterIssuers.Items {
 		if currentClusterIssuers.Items[i].ObjectMeta.Name == clusterIssuerName+"-ingress" {
 			fmt.Println("ClusterIssuer already there")
-
 			var clusterIssuer v1alpha3.ClusterIssuer = currentClusterIssuers.Items[i]
 
 			return &clusterIssuer, nil
@@ -251,5 +247,6 @@ func IsValidService(service *corev1.Service) bool {
 	}
 
 	fmt.Println("Valid service found")
+
 	return true
 }
