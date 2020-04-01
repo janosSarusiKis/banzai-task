@@ -169,15 +169,21 @@ func IsValidService(service *corev1.Service) bool {
 
 	fmt.Println("Validating service")
 
-	if domainLabelValue, ok := service.ObjectMeta.Labels[DomainLabel]; !ok && isd.IsDomain(domainLabelValue) {
+	if customIngressLabelValue, result := service.ObjectMeta.Labels[CustomIngressLabel]; !result || customIngressLabelValue != CustomIngressLabelValue {
+		fmt.Println("No custom label")
+
 		return false
 	}
 
-	if emailLabelValue, ok := service.ObjectMeta.Labels[EmailLabel]; !ok && regExValidaton.MatchString(emailLabelValue) {
+	if domainLabelValue, result := service.ObjectMeta.Labels[DomainLabel]; !result || isd.IsDomain(domainLabelValue) {
+		fmt.Println("Invalid domain name")
+
 		return false
 	}
 
-	if customIngressLabelValue, ok := service.ObjectMeta.Labels[CustomIngressLabel]; !ok || customIngressLabelValue == CustomIngressLabelValue {
+	if emailLabelValue, result := service.ObjectMeta.Labels[EmailLabel]; !result || regExValidaton.MatchString(emailLabelValue) {
+		fmt.Println("Invalid email address")
+
 		return false
 	}
 
