@@ -33,6 +33,8 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
+const DomainLabel = "domain"
+
 // CustomIngressManagerReconciler reconciles a CustomIngressManager object
 type CustomIngressManagerReconciler struct {
 	client.Client
@@ -79,13 +81,13 @@ func (r *CustomIngressManagerReconciler) Reconcile(req ctrl.Request) (ctrl.Resul
 			Spec: v1beta1.IngressSpec{
 				TLS: []v1beta1.IngressTLS{
 					{
-						Hosts:      []string{"example.com"},
+						Hosts:      []string{service.ObjectMeta.Annotations[DomainLabel]},
 						SecretName: service.Name + "-secret",
 					},
 				},
 				Rules: []v1beta1.IngressRule{
 					{
-						Host: "test.com",
+						Host: service.ObjectMeta.Annotations[DomainLabel],
 						IngressRuleValue: v1beta1.IngressRuleValue{
 							HTTP: &v1beta1.HTTPIngressRuleValue{
 								Paths: []v1beta1.HTTPIngressPath{
@@ -159,17 +161,16 @@ func GetIngressAddressByServiceName(r *CustomIngressManagerReconciler, serviceNa
 
 func IsValidService(service *corev1.Service) bool {
 	const (
-		CustomIngressLabel      = "feladat.banzaicloud.io/ingress"
-		CustomIngressLabelValue = "secure"
-		DomainLabel             = "domain"
-		EmailLabel              = "email"
+		customIngressLabel      = "feladat.banzaicloud.io/ingress"
+		customIngressLabelValue = "secure"
+		emailLabel              = "email"
 	)
 
 	regExValidaton := regexp.MustCompile("^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$")
 
 	fmt.Println("Validating service")
 
-	if customIngressLabelValue, result := service.ObjectMeta.Labels[CustomIngressLabel]; !result || customIngressLabelValue != CustomIngressLabelValue {
+	if customIngressLabelValue, result := service.ObjectMeta.Labels[customIngressLabel]; !result || customIngressLabelValue != customIngressLabelValue {
 		fmt.Println("No custom label")
 
 		return false
@@ -181,7 +182,7 @@ func IsValidService(service *corev1.Service) bool {
 		return false
 	}
 
-	if emailLabelValue, result := service.ObjectMeta.Annotations[EmailLabel]; !result || !regExValidaton.MatchString(emailLabelValue) {
+	if emailLabelValue, result := service.ObjectMeta.Annotations[emailLabel]; !result || !regExValidaton.MatchString(emailLabelValue) {
 		fmt.Println("Invalid email address: " + emailLabelValue)
 
 		return false
