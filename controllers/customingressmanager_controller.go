@@ -18,7 +18,6 @@ package controllers
 
 import (
 	"context"
-	"fmt"
 	"regexp"
 
 	isd "github.com/jbenet/go-is-domain"
@@ -59,8 +58,8 @@ func (r *CustomIngressManagerReconciler) Reconcile(req ctrl.Request) (ctrl.Resul
 	if err := r.Get(ctx, req.NamespacedName, &service); err != nil {
 		log.Error(err, "Unable to fetch the Service")
 
-		var existingIngressPointer, innerIngressError = GetIngressAddressByServiceName(r, req.NamespacedName.Name+"-ingress")
-		var existingClusterIssuerPointer, innerClusterIssuerError = GetIngressAddressByServiceName(r, req.NamespacedName.Name+"-lets-encrypt-staging")
+		var existingIngressPointer, innerIngressError = GetIngressAddressByServiceName(r, req.NamespacedName.Name+"-ingress", log)
+		var existingClusterIssuerPointer, innerClusterIssuerError = GetIngressAddressByServiceName(r, req.NamespacedName.Name+"-lets-encrypt-staging", log)
 
 		if innerIngressError != nil {
 			return ctrl.Result{}, innerIngressError
@@ -81,11 +80,11 @@ func (r *CustomIngressManagerReconciler) Reconcile(req ctrl.Request) (ctrl.Resul
 		return ctrl.Result{}, client.IgnoreNotFound(err)
 	}
 
-	if IsValidService(&service) {
-		fmt.Println("Check if ingress already exists")
+	if IsValidService(&service, log) {
+		log.Info("Check if ingress already exists")
 
-		var existingIngressPointer, innerIngressError = GetIngressAddressByServiceName(r, service.Name+"-ingress")
-		var existingClusterIssuerPointer, innerClusterIssuerError = GetIngressAddressByServiceName(r, service.Name+"-lets-encrypt-staging")
+		var existingIngressPointer, innerIngressError = GetIngressAddressByServiceName(r, service.Name+"-ingress", log)
+		var existingClusterIssuerPointer, innerClusterIssuerError = GetIngressAddressByServiceName(r, service.Name+"-lets-encrypt-staging", log)
 
 		if innerIngressError != nil {
 			return ctrl.Result{}, innerIngressError
@@ -111,7 +110,7 @@ func (r *CustomIngressManagerReconciler) Reconcile(req ctrl.Request) (ctrl.Resul
 					},
 				},
 			}
-			fmt.Println("Try to create ClusterIssuer")
+			log.Info("Try to create ClusterIssuer")
 			if err := r.Create(ctx, &clusterIssuer); err != nil {
 				log.Error(err, "unable to create the Cluster issuer")
 				// we'll ignore not-found errors, since they can't be fixed by an immediate
@@ -156,16 +155,16 @@ func (r *CustomIngressManagerReconciler) Reconcile(req ctrl.Request) (ctrl.Resul
 				},
 			}
 
-			fmt.Println("Try to create Ingress")
+			log.Info("Try to create Ingress")
 			if err := r.Create(ctx, &ingress); err != nil {
-				log.Error(err, "unable to create the Ingress")
+				log.Error(err, "Unable to create the Ingress")
 				// we'll ignore not-found errors, since they can't be fixed by an immediate
 				// requeue (we'll need to wait for a new notification), and we can get them
 				// on deleted requests.
 				return ctrl.Result{}, client.IgnoreNotFound(err)
 			}
 
-			fmt.Println("Ingress created")
+			log.Info("Ingress created")
 		}
 	}
 
@@ -178,8 +177,7 @@ func (r *CustomIngressManagerReconciler) SetupWithManager(mgr ctrl.Manager) erro
 		Complete(r)
 }
 
-func GetIngressAddressByServiceName(r *CustomIngressManagerReconciler, ingressName string) (*v1beta1.Ingress, error) {
-
+func GetIngressAddressByServiceName(r *CustomIngressManagerReconciler, ingressName string, log logr.Logger) (*v1beta1.Ingress, error) {
 	ctx := context.Background()
 	var currentIngresses v1beta1.IngressList
 	if err := r.List(ctx, &currentIngresses); err != nil {
@@ -188,7 +186,7 @@ func GetIngressAddressByServiceName(r *CustomIngressManagerReconciler, ingressNa
 
 	for i := range currentIngresses.Items {
 		if currentIngresses.Items[i].ObjectMeta.Name == ingressName {
-			fmt.Println("Ingress already there")
+			log.Info("Ingress already there")
 			var ingress v1beta1.Ingress = currentIngresses.Items[i]
 
 			return &ingress, nil
@@ -198,8 +196,7 @@ func GetIngressAddressByServiceName(r *CustomIngressManagerReconciler, ingressNa
 	return nil, nil
 }
 
-func GetClusterIssuerAddressByServiceName(r *CustomIngressManagerReconciler, clusterIssuerName string) (*v1alpha3.ClusterIssuer, error) {
-
+func GetClusterIssuerAddressByServiceName(r *CustomIngressManagerReconciler, clusterIssuerName string, log logr.Logger) (*v1alpha3.ClusterIssuer, error) {
 	ctx := context.Background()
 	var currentClusterIssuers v1alpha3.ClusterIssuerList
 	if err := r.List(ctx, &currentClusterIssuers); err != nil {
@@ -208,7 +205,7 @@ func GetClusterIssuerAddressByServiceName(r *CustomIngressManagerReconciler, clu
 
 	for i := range currentClusterIssuers.Items {
 		if currentClusterIssuers.Items[i].ObjectMeta.Name == clusterIssuerName+"-ingress" {
-			fmt.Println("ClusterIssuer already there")
+			log.Info("ClusterIssuer already there")
 			var clusterIssuer v1alpha3.ClusterIssuer = currentClusterIssuers.Items[i]
 
 			return &clusterIssuer, nil
@@ -218,7 +215,7 @@ func GetClusterIssuerAddressByServiceName(r *CustomIngressManagerReconciler, clu
 	return nil, nil
 }
 
-func IsValidService(service *corev1.Service) bool {
+func IsValidService(service *corev1.Service, log logr.Logger) bool {
 	const (
 		customIngressLabel      = "feladat.banzaicloud.io/ingress"
 		customIngressLabelValue = "secure"
@@ -226,27 +223,27 @@ func IsValidService(service *corev1.Service) bool {
 
 	regExValidaton := regexp.MustCompile("^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$")
 
-	fmt.Println("Validating service")
+	log.Info("Validating service")
 
 	if customIngressLabelValue, result := service.ObjectMeta.Labels[customIngressLabel]; !result || customIngressLabelValue != customIngressLabelValue {
-		fmt.Println("No custom label")
+		log.Info("No custom label")
 
 		return false
 	}
 
 	if domainLabelValue, result := service.ObjectMeta.Annotations[DomainLabel]; !result || !isd.IsDomain(domainLabelValue) {
-		fmt.Println("Invalid domain name: " + domainLabelValue)
+		log.Info("Invalid domain name: " + domainLabelValue)
 
 		return false
 	}
 
 	if emailLabelValue, result := service.ObjectMeta.Annotations[EmailLabel]; !result || !regExValidaton.MatchString(emailLabelValue) {
-		fmt.Println("Invalid email address: " + emailLabelValue)
+		log.Info("Invalid email address: " + emailLabelValue)
 
 		return false
 	}
 
-	fmt.Println("Valid service found")
+	log.Info("Valid service found")
 
 	return true
 }
