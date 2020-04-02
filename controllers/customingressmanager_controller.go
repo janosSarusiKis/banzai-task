@@ -90,13 +90,13 @@ func (r *CustomIngressManagerReconciler) Reconcile(req ctrl.Request) (ctrl.Resul
 
 		if existingClusterIssuer == nil {
 			if err := r.CreateClusterIssuerForSerive(service); err != nil {
-				return ctrl.Result{}, err
+				return ctrl.Result{}, client.IgnoreNotFound(err)
 			}
 		}
 
 		if existingIngress == nil {
 			if err := r.CreateIngressForService(service); err != nil {
-				return ctrl.Result{}, err
+				return ctrl.Result{}, client.IgnoreNotFound(err)
 			}
 		}
 	}
@@ -170,7 +170,7 @@ func (r *CustomIngressManagerReconciler) IsValidService(service *corev1.Service)
 		return false
 	}
 
-	log.Info("Valid service found")
+	r.Log.Info("Valid service found")
 
 	return true
 }
@@ -217,7 +217,7 @@ func (r *CustomIngressManagerReconciler) CreateIngressForService(service corev1.
 		// we'll ignore not-found errors, since they can't be fixed by an immediate
 		// requeue (we'll need to wait for a new notification), and we can get them
 		// on deleted requests.
-		return err
+		return client.IgnoreNotFound(err)
 	}
 
 	log.Info("Ingress created")
@@ -248,7 +248,7 @@ func (r *CustomIngressManagerReconciler) CreateClusterIssuerForSerive(service co
 		// we'll ignore not-found errors, since they can't be fixed by an immediate
 		// requeue (we'll need to wait for a new notification), and we can get them
 		// on deleted requests.
-		return err
+		return client.IgnoreNotFound(err)
 	}
 
 	return nil
