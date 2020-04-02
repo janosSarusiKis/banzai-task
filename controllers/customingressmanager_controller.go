@@ -60,15 +60,15 @@ func (r *CustomIngressManagerReconciler) Reconcile(req ctrl.Request) (ctrl.Resul
 	if err := r.Get(ctx, req.NamespacedName, &service); err != nil {
 		log.Error(err, "Unable to fetch the Service")
 
-		existingIngressPointer, err := GetIngressAddressByServiceName(r, req.NamespacedName.Name+"-ingress", log)
-		existingClusterIssuerPointer, err := GetIngressAddressByServiceName(r, req.NamespacedName.Name+"-lets-encrypt-staging", log)
+		existingIngress, err := GetIngressAddressByServiceName(r, CreateIngressName(req.NamespacedName.Name), log)
+		existingClusterIssuer, err := GetIngressAddressByServiceName(r, CreateClusterIssuerName(req.NamespacedName.Name), log)
 
-		if existingIngressPointer != nil {
-			r.Delete(ctx, existingIngressPointer)
+		if existingIngress != nil {
+			r.Delete(ctx, existingIngress)
 		}
 
-		if existingClusterIssuerPointer != nil {
-			r.Delete(ctx, existingClusterIssuerPointer)
+		if existingClusterIssuer != nil {
+			r.Delete(ctx, existingClusterIssuer)
 		}
 
 		return ctrl.Result{}, client.IgnoreNotFound(err)
@@ -77,8 +77,8 @@ func (r *CustomIngressManagerReconciler) Reconcile(req ctrl.Request) (ctrl.Resul
 	if IsValidService(&service, log) {
 		log.Info("Check if ingress already exists")
 
-		existingIngressPointer, innerIngressError := GetIngressAddressByServiceName(r, service.Name+"-ingress", log)
-		existingClusterIssuerPointer, innerClusterIssuerError := GetIngressAddressByServiceName(r, service.Name+"-lets-encrypt-staging", log)
+		existingIngress, innerIngressError := GetIngressAddressByServiceName(r, CreateIngressName(service.Name), log)
+		existingClusterIssuer, innerClusterIssuerError := GetIngressAddressByServiceName(r, CreateClusterIssuerName(service.Name), log)
 
 		if innerIngressError != nil {
 			return ctrl.Result{}, innerIngressError
@@ -88,10 +88,10 @@ func (r *CustomIngressManagerReconciler) Reconcile(req ctrl.Request) (ctrl.Resul
 			return ctrl.Result{}, innerClusterIssuerError
 		}
 
-		if existingClusterIssuerPointer == nil {
-			var clusterIssuer = v1alpha3.ClusterIssuer{
+		if existingClusterIssuer == nil {
+			clusterIssuer := v1alpha3.ClusterIssuer{
 				ObjectMeta: metav1.ObjectMeta{
-					Name:      service.Name + "-lets-encrypt-staging",
+					Name:      CreateClusterIssuerName(service.Name),
 					Namespace: service.Namespace,
 				},
 				Spec: v1alpha3.IssuerSpec{
@@ -105,7 +105,7 @@ func (r *CustomIngressManagerReconciler) Reconcile(req ctrl.Request) (ctrl.Resul
 			}
 			log.Info("Try to create ClusterIssuer")
 			if err := r.Create(ctx, &clusterIssuer); err != nil {
-				log.Error(err, "unable to create the Cluster issuer")
+				log.Error(err, "Unable to create the Cluster issuer")
 				// we'll ignore not-found errors, since they can't be fixed by an immediate
 				// requeue (we'll need to wait for a new notification), and we can get them
 				// on deleted requests.
@@ -113,12 +113,12 @@ func (r *CustomIngressManagerReconciler) Reconcile(req ctrl.Request) (ctrl.Resul
 			}
 		}
 
-		if existingIngressPointer == nil {
-			var ingress = v1beta1.Ingress{
+		if existingIngress == nil {
+			ingress := v1beta1.Ingress{
 				ObjectMeta: metav1.ObjectMeta{
-					Name:        service.Name + "-ingress",
+					Name:        CreateIngressName(service.Name),
 					Namespace:   service.Namespace,
-					Annotations: map[string]string{"cert-manager.io/cluster-issuer": service.Name + "-lets-encrypt-staging"},
+					Annotations: map[string]string{"cert-manager.io/cluster-issuer": CreateClusterIssuerName(service.Name)},
 				},
 				Spec: v1beta1.IngressSpec{
 					TLS: []v1beta1.IngressTLS{
@@ -197,7 +197,7 @@ func GetClusterIssuerAddressByServiceName(r *CustomIngressManagerReconciler, clu
 	}
 
 	for i := range currentClusterIssuers.Items {
-		if currentClusterIssuers.Items[i].ObjectMeta.Name == clusterIssuerName+"-ingress" {
+		if currentClusterIssuers.Items[i].ObjectMeta.Name == clusterIssuerName {
 			log.Info("ClusterIssuer already there")
 			var clusterIssuer v1alpha3.ClusterIssuer = currentClusterIssuers.Items[i]
 
@@ -233,4 +233,12 @@ func IsValidService(service *corev1.Service, log logr.Logger) bool {
 	log.Info("Valid service found")
 
 	return true
+}
+
+func CreateIngressName(name string) string {
+	return name + "-ingeress"
+}
+
+func CreateClusterIssuerName(name string) string {
+	return name + "-lets-encrypt-staging"
 }
