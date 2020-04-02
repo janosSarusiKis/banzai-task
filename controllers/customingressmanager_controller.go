@@ -77,7 +77,6 @@ func (r *CustomIngressManagerReconciler) Reconcile(req ctrl.Request) (ctrl.Resul
 
 	if r.IsValidService(&service) {
 		log.Info("Check if ingress already exists")
-
 		existingIngress, innerIngressError := r.GetIngressByServiceName(CreateIngressName(service.Name))
 		existingClusterIssuer, innerClusterIssuerError := r.GetClusterIssuerByServiceName(CreateClusterIssuerName(service.Name))
 
@@ -90,76 +89,15 @@ func (r *CustomIngressManagerReconciler) Reconcile(req ctrl.Request) (ctrl.Resul
 		}
 
 		if existingClusterIssuer == nil {
-			clusterIssuer := v1alpha3.ClusterIssuer{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      CreateClusterIssuerName(service.Name),
-					Namespace: service.Namespace,
-				},
-				Spec: v1alpha3.IssuerSpec{
-					IssuerConfig: v1alpha3.IssuerConfig{
-						ACME: &cmacme.ACMEIssuer{
-							Server: "https://acme-staging.api.letsencrypt.org/directory",
-							Email:  service.ObjectMeta.Annotations[EmailLabel],
-						},
-					},
-				},
-			}
-
-			log.Info("Try to create ClusterIssuer")
-			if err := r.Create(ctx, &clusterIssuer); err != nil {
-				log.Error(err, "Unable to create the Cluster issuer")
-				// we'll ignore not-found errors, since they can't be fixed by an immediate
-				// requeue (we'll need to wait for a new notification), and we can get them
-				// on deleted requests.
-				return ctrl.Result{}, client.IgnoreNotFound(err)
+			if err := r.CreateClusterIssuerForSerive(service); err != nil {
+				return ctrl.Result{}, err
 			}
 		}
 
 		if existingIngress == nil {
-			ingress := v1beta1.Ingress{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:        CreateIngressName(service.Name),
-					Namespace:   service.Namespace,
-					Annotations: map[string]string{"cert-manager.io/cluster-issuer": CreateClusterIssuerName(service.Name)},
-				},
-				Spec: v1beta1.IngressSpec{
-					TLS: []v1beta1.IngressTLS{
-						{
-							Hosts:      []string{service.ObjectMeta.Annotations[DomainLabel]},
-							SecretName: service.Name + "-secret",
-						},
-					},
-					Rules: []v1beta1.IngressRule{
-						{
-							Host: service.ObjectMeta.Annotations[DomainLabel],
-							IngressRuleValue: v1beta1.IngressRuleValue{
-								HTTP: &v1beta1.HTTPIngressRuleValue{
-									Paths: []v1beta1.HTTPIngressPath{
-										{
-											Path: "/",
-											Backend: v1beta1.IngressBackend{
-												ServiceName: service.Name,
-												ServicePort: intstr.FromInt(80),
-											},
-										},
-									},
-								},
-							},
-						},
-					},
-				},
+			if err := r.CreateIngressForService(service); err != nil {
+				return ctrl.Result{}, err
 			}
-
-			log.Info("Try to create Ingress")
-			if err := r.Create(ctx, &ingress); err != nil {
-				log.Error(err, "Unable to create the Ingress")
-				// we'll ignore not-found errors, since they can't be fixed by an immediate
-				// requeue (we'll need to wait for a new notification), and we can get them
-				// on deleted requests.
-				return ctrl.Result{}, client.IgnoreNotFound(err)
-			}
-
-			log.Info("Ingress created")
 		}
 	}
 
@@ -235,6 +173,85 @@ func (r *CustomIngressManagerReconciler) IsValidService(service *corev1.Service)
 	log.Info("Valid service found")
 
 	return true
+}
+
+func (r *CustomIngressManagerReconciler) CreateIngressForService(service corev1.Service) error {
+	ctx := context.Background()
+	ingress := v1beta1.Ingress{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:        CreateIngressName(service.Name),
+			Namespace:   service.Namespace,
+			Annotations: map[string]string{"cert-manager.io/cluster-issuer": CreateClusterIssuerName(service.Name)},
+		},
+		Spec: v1beta1.IngressSpec{
+			TLS: []v1beta1.IngressTLS{
+				{
+					Hosts:      []string{service.ObjectMeta.Annotations[DomainLabel]},
+					SecretName: service.Name + "-secret",
+				},
+			},
+			Rules: []v1beta1.IngressRule{
+				{
+					Host: service.ObjectMeta.Annotations[DomainLabel],
+					IngressRuleValue: v1beta1.IngressRuleValue{
+						HTTP: &v1beta1.HTTPIngressRuleValue{
+							Paths: []v1beta1.HTTPIngressPath{
+								{
+									Path: "/",
+									Backend: v1beta1.IngressBackend{
+										ServiceName: service.Name,
+										ServicePort: intstr.FromInt(80),
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+
+	log.Info("Try to create Ingress")
+	if err := r.Create(ctx, &ingress); err != nil {
+		log.Error(err, "Unable to create the Ingress")
+		// we'll ignore not-found errors, since they can't be fixed by an immediate
+		// requeue (we'll need to wait for a new notification), and we can get them
+		// on deleted requests.
+		return err
+	}
+
+	log.Info("Ingress created")
+
+	return nil
+}
+
+func (r *CustomIngressManagerReconciler) CreateClusterIssuerForSerive(service corev1.Service) error {
+	ctx := context.Background()
+	clusterIssuer := v1alpha3.ClusterIssuer{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      CreateClusterIssuerName(service.Name),
+			Namespace: service.Namespace,
+		},
+		Spec: v1alpha3.IssuerSpec{
+			IssuerConfig: v1alpha3.IssuerConfig{
+				ACME: &cmacme.ACMEIssuer{
+					Server: "https://acme-staging.api.letsencrypt.org/directory",
+					Email:  service.ObjectMeta.Annotations[EmailLabel],
+				},
+			},
+		},
+	}
+
+	r.Log.Info("Try to create ClusterIssuer")
+	if err := r.Create(ctx, &clusterIssuer); err != nil {
+		log.Error(err, "Unable to create the Cluster issuer")
+		// we'll ignore not-found errors, since they can't be fixed by an immediate
+		// requeue (we'll need to wait for a new notification), and we can get them
+		// on deleted requests.
+		return err
+	}
+
+	return nil
 }
 
 func CreateIngressName(name string) string {
