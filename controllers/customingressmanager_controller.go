@@ -36,8 +36,10 @@ import (
 )
 
 const (
-	DomainLabel = "domain"
-	EmailLabel  = "email"
+	DomainLabel             = "domain"
+	EmailLabel              = "email"
+	CustomIngressLabel      = "feladat.banzaicloud.io/ingress"
+	CustomIngressLabelValue = "secure"
 )
 
 // CustomIngressManagerReconciler reconciles a CustomIngressManager object
@@ -58,16 +60,8 @@ func (r *CustomIngressManagerReconciler) Reconcile(req ctrl.Request) (ctrl.Resul
 	if err := r.Get(ctx, req.NamespacedName, &service); err != nil {
 		log.Error(err, "Unable to fetch the Service")
 
-		var existingIngressPointer, innerIngressError = GetIngressAddressByServiceName(r, req.NamespacedName.Name+"-ingress", log)
-		var existingClusterIssuerPointer, innerClusterIssuerError = GetIngressAddressByServiceName(r, req.NamespacedName.Name+"-lets-encrypt-staging", log)
-
-		if innerIngressError != nil {
-			return ctrl.Result{}, innerIngressError
-		}
-
-		if innerClusterIssuerError != nil {
-			return ctrl.Result{}, innerIngressError
-		}
+		existingIngressPointer, err := GetIngressAddressByServiceName(r, req.NamespacedName.Name+"-ingress", log)
+		existingClusterIssuerPointer, err := GetIngressAddressByServiceName(r, req.NamespacedName.Name+"-lets-encrypt-staging", log)
 
 		if existingIngressPointer != nil {
 			r.Delete(ctx, existingIngressPointer)
@@ -83,8 +77,8 @@ func (r *CustomIngressManagerReconciler) Reconcile(req ctrl.Request) (ctrl.Resul
 	if IsValidService(&service, log) {
 		log.Info("Check if ingress already exists")
 
-		var existingIngressPointer, innerIngressError = GetIngressAddressByServiceName(r, service.Name+"-ingress", log)
-		var existingClusterIssuerPointer, innerClusterIssuerError = GetIngressAddressByServiceName(r, service.Name+"-lets-encrypt-staging", log)
+		existingIngressPointer, innerIngressError := GetIngressAddressByServiceName(r, service.Name+"-ingress", log)
+		existingClusterIssuerPointer, innerClusterIssuerError := GetIngressAddressByServiceName(r, service.Name+"-lets-encrypt-staging", log)
 
 		if innerIngressError != nil {
 			return ctrl.Result{}, innerIngressError
@@ -215,27 +209,22 @@ func GetClusterIssuerAddressByServiceName(r *CustomIngressManagerReconciler, clu
 }
 
 func IsValidService(service *corev1.Service, log logr.Logger) bool {
-	const (
-		customIngressLabel      = "feladat.banzaicloud.io/ingress"
-		customIngressLabelValue = "secure"
-	)
-
 	regExValidaton := regexp.MustCompile("^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$")
 
 	log.Info("Validating service")
-	if customIngressLabelValue, result := service.ObjectMeta.Labels[customIngressLabel]; !result || customIngressLabelValue != customIngressLabelValue {
+	if customIngressLabelValue, ok := service.ObjectMeta.Labels[CustomIngressLabel]; !ok || customIngressLabelValue != customIngressLabelValue {
 		log.Info("No custom label")
 
 		return false
 	}
 
-	if domainLabelValue, result := service.ObjectMeta.Annotations[DomainLabel]; !result || !isd.IsDomain(domainLabelValue) {
+	if domainLabelValue, ok := service.ObjectMeta.Annotations[DomainLabel]; !ok || !isd.IsDomain(domainLabelValue) {
 		log.Info("Invalid domain name: " + domainLabelValue)
 
 		return false
 	}
 
-	if emailLabelValue, result := service.ObjectMeta.Annotations[EmailLabel]; !result || !regExValidaton.MatchString(emailLabelValue) {
+	if emailLabelValue, ok := service.ObjectMeta.Annotations[EmailLabel]; !ok || !regExValidaton.MatchString(emailLabelValue) {
 		log.Info("Invalid email address: " + emailLabelValue)
 
 		return false
