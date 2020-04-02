@@ -21,6 +21,7 @@ import (
 	"regexp"
 
 	isd "github.com/jbenet/go-is-domain"
+	"github.com/prometheus/common/log"
 
 	"github.com/go-logr/logr"
 	cmacme "github.com/jetstack/cert-manager/pkg/apis/acme/v1alpha3"
@@ -74,7 +75,7 @@ func (r *CustomIngressManagerReconciler) Reconcile(req ctrl.Request) (ctrl.Resul
 		return ctrl.Result{}, client.IgnoreNotFound(err)
 	}
 
-	if IsValidService(&service, log) {
+	if r.IsValidService(&service) {
 		log.Info("Check if ingress already exists")
 
 		existingIngress, innerIngressError := r.GetIngressByServiceName(CreateIngressName(service.Name))
@@ -209,24 +210,24 @@ func (r *CustomIngressManagerReconciler) GetClusterIssuerByServiceName(clusterIs
 	return nil, nil
 }
 
-func IsValidService(service *corev1.Service, log logr.Logger) bool {
+func (r *CustomIngressManagerReconciler) IsValidService(service *corev1.Service) bool {
 	regExValidaton := regexp.MustCompile("^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$")
 
-	log.Info("Validating service")
+	r.Log.Info("Validating service")
 	if customIngressLabelValue, ok := service.ObjectMeta.Labels[CustomIngressLabel]; !ok || customIngressLabelValue != customIngressLabelValue {
-		log.Info("No custom label")
+		r.Log.Info("No custom label")
 
 		return false
 	}
 
 	if domainLabelValue, ok := service.ObjectMeta.Annotations[DomainLabel]; !ok || !isd.IsDomain(domainLabelValue) {
-		log.Info("Invalid domain name: " + domainLabelValue)
+		r.Log.Info("Invalid domain name: " + domainLabelValue)
 
 		return false
 	}
 
 	if emailLabelValue, ok := service.ObjectMeta.Annotations[EmailLabel]; !ok || !regExValidaton.MatchString(emailLabelValue) {
-		log.Info("Invalid email address: " + emailLabelValue)
+		r.Log.Info("Invalid email address: " + emailLabelValue)
 
 		return false
 	}
