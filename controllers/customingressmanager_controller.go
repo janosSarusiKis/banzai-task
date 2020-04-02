@@ -60,8 +60,8 @@ func (r *CustomIngressManagerReconciler) Reconcile(req ctrl.Request) (ctrl.Resul
 	if err := r.Get(ctx, req.NamespacedName, &service); err != nil {
 		log.Error(err, "Unable to fetch the Service")
 
-		existingIngress, err := r.GetIngressByServiceName(CreateIngressName(req.NamespacedName.Name), log)
-		existingClusterIssuer, err := r.GetClusterIssuerByServiceName(CreateClusterIssuerName(req.NamespacedName.Name), log)
+		existingIngress, err := r.GetIngressByServiceName(CreateIngressName(req.NamespacedName.Name))
+		existingClusterIssuer, err := r.GetClusterIssuerByServiceName(CreateClusterIssuerName(req.NamespacedName.Name))
 
 		if existingIngress != nil {
 			r.Delete(ctx, existingIngress)
@@ -77,8 +77,8 @@ func (r *CustomIngressManagerReconciler) Reconcile(req ctrl.Request) (ctrl.Resul
 	if IsValidService(&service, log) {
 		log.Info("Check if ingress already exists")
 
-		existingIngress, innerIngressError := r.GetIngressByServiceName(CreateIngressName(service.Name), log)
-		existingClusterIssuer, innerClusterIssuerError := r.GetClusterIssuerByServiceName(CreateClusterIssuerName(service.Name), log)
+		existingIngress, innerIngressError := r.GetIngressByServiceName(CreateIngressName(service.Name))
+		existingClusterIssuer, innerClusterIssuerError := r.GetClusterIssuerByServiceName(CreateClusterIssuerName(service.Name))
 
 		if innerIngressError != nil {
 			return ctrl.Result{}, innerIngressError
@@ -103,6 +103,7 @@ func (r *CustomIngressManagerReconciler) Reconcile(req ctrl.Request) (ctrl.Resul
 					},
 				},
 			}
+
 			log.Info("Try to create ClusterIssuer")
 			if err := r.Create(ctx, &clusterIssuer); err != nil {
 				log.Error(err, "Unable to create the Cluster issuer")
@@ -170,7 +171,7 @@ func (r *CustomIngressManagerReconciler) SetupWithManager(mgr ctrl.Manager) erro
 		Complete(r)
 }
 
-func (r *CustomIngressManagerReconciler) GetIngressByServiceName(ingressName string, log logr.Logger) (*v1beta1.Ingress, error) {
+func (r *CustomIngressManagerReconciler) GetIngressByServiceName(ingressName string) (*v1beta1.Ingress, error) {
 	ctx := context.Background()
 	var currentIngresses v1beta1.IngressList
 	if err := r.List(ctx, &currentIngresses); err != nil {
@@ -179,7 +180,7 @@ func (r *CustomIngressManagerReconciler) GetIngressByServiceName(ingressName str
 
 	for i := range currentIngresses.Items {
 		if currentIngresses.Items[i].ObjectMeta.Name == ingressName {
-			log.Info("Ingress already there")
+			r.Log.Info("Ingress already there")
 			var ingress v1beta1.Ingress = currentIngresses.Items[i]
 
 			return &ingress, nil
@@ -189,7 +190,7 @@ func (r *CustomIngressManagerReconciler) GetIngressByServiceName(ingressName str
 	return nil, nil
 }
 
-func (r *CustomIngressManagerReconciler) GetClusterIssuerByServiceName(clusterIssuerName string, log logr.Logger) (*v1alpha3.ClusterIssuer, error) {
+func (r *CustomIngressManagerReconciler) GetClusterIssuerByServiceName(clusterIssuerName string) (*v1alpha3.ClusterIssuer, error) {
 	ctx := context.Background()
 	var currentClusterIssuers v1alpha3.ClusterIssuerList
 	if err := r.List(ctx, &currentClusterIssuers); err != nil {
@@ -198,7 +199,7 @@ func (r *CustomIngressManagerReconciler) GetClusterIssuerByServiceName(clusterIs
 
 	for i := range currentClusterIssuers.Items {
 		if currentClusterIssuers.Items[i].ObjectMeta.Name == clusterIssuerName {
-			log.Info("ClusterIssuer already there")
+			r.Log.Info("ClusterIssuer already there")
 			var clusterIssuer v1alpha3.ClusterIssuer = currentClusterIssuers.Items[i]
 
 			return &clusterIssuer, nil
