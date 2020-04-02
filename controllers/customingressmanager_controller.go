@@ -96,7 +96,6 @@ func (r *CustomIngressManagerReconciler) Reconcile(req ctrl.Request) (ctrl.Resul
 
 		if existingClusterIssuerPointer == nil {
 			var clusterIssuer = v1alpha3.ClusterIssuer{
-
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      service.Name + "-lets-encrypt-staging",
 					Namespace: service.Namespace,
@@ -224,7 +223,6 @@ func IsValidService(service *corev1.Service, log logr.Logger) bool {
 	regExValidaton := regexp.MustCompile("^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$")
 
 	log.Info("Validating service")
-
 	if customIngressLabelValue, result := service.ObjectMeta.Labels[customIngressLabel]; !result || customIngressLabelValue != customIngressLabelValue {
 		log.Info("No custom label")
 

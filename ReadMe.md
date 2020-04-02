@@ -1,4 +1,4 @@
-#BanzaiCloud feladat
+# BanzaiCloud feladat
 
 Feladat lírás: https://docs.google.com/document/d/1LDMmUPPjV3NhrtGbXSfSdshPcZvv7Sft5m_-q_aVycM/edit#heading=h.gjc0w6xygrw7
 
