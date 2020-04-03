@@ -61,8 +61,8 @@ func (r *CustomIngressManagerReconciler) Reconcile(req ctrl.Request) (ctrl.Resul
 	if err := r.Get(ctx, req.NamespacedName, &service); err != nil {
 		log.Error(err, "Unable to fetch the Service")
 
-		existingIngress, err := r.GetIngressByServiceName(CreateIngressName(req.NamespacedName.Name))
-		existingClusterIssuer, err := r.GetClusterIssuerByServiceName(CreateClusterIssuerName(req.NamespacedName.Name))
+		existingIngress, err := r.GetIngressByName(CreateIngressName(req.NamespacedName.Name))
+		existingClusterIssuer, err := r.GetClusterIssuerByName(CreateClusterIssuerName(req.NamespacedName.Name))
 
 		if existingIngress != nil {
 			r.Delete(ctx, existingIngress)
@@ -77,8 +77,8 @@ func (r *CustomIngressManagerReconciler) Reconcile(req ctrl.Request) (ctrl.Resul
 
 	if r.IsValidService(&service) {
 		log.Info("Check if ingress already exists")
-		existingIngress, innerIngressError := r.GetIngressByServiceName(CreateIngressName(service.Name))
-		existingClusterIssuer, innerClusterIssuerError := r.GetClusterIssuerByServiceName(CreateClusterIssuerName(service.Name))
+		existingIngress, innerIngressError := r.GetIngressByName(CreateIngressName(service.Name))
+		existingClusterIssuer, innerClusterIssuerError := r.GetClusterIssuerByName(CreateClusterIssuerName(service.Name))
 
 		if innerIngressError != nil {
 			return ctrl.Result{}, innerIngressError
@@ -110,7 +110,7 @@ func (r *CustomIngressManagerReconciler) SetupWithManager(mgr ctrl.Manager) erro
 		Complete(r)
 }
 
-func (r *CustomIngressManagerReconciler) GetIngressByServiceName(ingressName string) (*v1beta1.Ingress, error) {
+func (r *CustomIngressManagerReconciler) GetIngressByName(ingressName string) (*v1beta1.Ingress, error) {
 	ctx := context.Background()
 	var currentIngresses v1beta1.IngressList
 	if err := r.List(ctx, &currentIngresses); err != nil {
@@ -128,7 +128,7 @@ func (r *CustomIngressManagerReconciler) GetIngressByServiceName(ingressName str
 	return nil, nil
 }
 
-func (r *CustomIngressManagerReconciler) GetClusterIssuerByServiceName(clusterIssuerName string) (*v1alpha3.ClusterIssuer, error) {
+func (r *CustomIngressManagerReconciler) GetClusterIssuerByName(clusterIssuerName string) (*v1alpha3.ClusterIssuer, error) {
 	ctx := context.Background()
 	var currentClusterIssuers v1alpha3.ClusterIssuerList
 	if err := r.List(ctx, &currentClusterIssuers); err != nil {
