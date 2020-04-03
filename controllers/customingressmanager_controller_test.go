@@ -40,7 +40,6 @@ func TestCreateClusterIssuerName(t *testing.T) {
 		args args
 		want string
 	}{
-		// TODO: Add test cases.
 		{
 			name: "valid",
 			args: args{
@@ -73,7 +72,6 @@ func TestCustomIngressManagerReconciler_IsValidService(t *testing.T) {
 		args   args
 		want   bool
 	}{
-		// TODO: Add test cases.
 		{
 			name: "valid",
 			fields: fields{
@@ -246,7 +244,6 @@ func TestCustomIngressManagerReconciler_CreateIngressForService(t *testing.T) {
 		args    args
 		wantErr bool
 	}{
-		// TODO: Add test cases.
 		{
 			name: "valid",
 			fields: fields{
@@ -300,7 +297,6 @@ func TestCustomIngressManagerReconciler_CreateClusterIssuerForService(t *testing
 		args    args
 		wantErr bool
 	}{
-		// TODO: Add test cases.
 		{
 			name: "valid",
 			fields: fields{
