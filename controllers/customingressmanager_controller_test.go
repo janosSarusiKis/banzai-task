@@ -41,7 +41,7 @@ func TestCreateClusterIssuerName(t *testing.T) {
 		want string
 	}{
 		{
-			name: "valid",
+			name: "Valid",
 			args: args{
 				name: "svc",
 			},
@@ -73,7 +73,7 @@ func TestCustomIngressManagerReconciler_IsValidService(t *testing.T) {
 		want   bool
 	}{
 		{
-			name: "valid",
+			name: "Valid",
 			fields: fields{
 				Client: clientFaker.NewFakeClient(),
 				Log:    ctrl.Log.WithName("customingressmanager"),
@@ -92,7 +92,7 @@ func TestCustomIngressManagerReconciler_IsValidService(t *testing.T) {
 			want: true,
 		},
 		{
-			name: "invalidEmail",
+			name: "InvalidEmail",
 			fields: fields{
 				Client: clientFaker.NewFakeClient(),
 				Log:    ctrl.Log.WithName("customingressmanager"),
@@ -111,7 +111,7 @@ func TestCustomIngressManagerReconciler_IsValidService(t *testing.T) {
 			want: false,
 		},
 		{
-			name: "invalidDomain",
+			name: "InvalidDomain",
 			fields: fields{
 				Client: clientFaker.NewFakeClient(),
 				Log:    ctrl.Log.WithName("customingressmanager"),
@@ -130,7 +130,7 @@ func TestCustomIngressManagerReconciler_IsValidService(t *testing.T) {
 			want: false,
 		},
 		{
-			name: "noValidLabe",
+			name: "NoValidLabe",
 			fields: fields{
 				Client: clientFaker.NewFakeClient(),
 				Log:    ctrl.Log.WithName("customingressmanager"),
@@ -196,7 +196,7 @@ func TestCustomIngressManagerReconciler_GetIngressByName(t *testing.T) {
 		wantErr bool
 	}{
 		{
-			name: "valid",
+			name: "Valid",
 			fields: fields{
 				Client: clientFaker.NewFakeClientWithScheme(testScheme, testIngresses),
 				Log:    ctrl.Log.WithName("customingressmanager"),
@@ -206,6 +206,19 @@ func TestCustomIngressManagerReconciler_GetIngressByName(t *testing.T) {
 				ingressName: "testsvc-ingress",
 			},
 			want:    testIngress,
+			wantErr: false,
+		},
+		{
+			name: "NoIngress",
+			fields: fields{
+				Client: clientFaker.NewFakeClientWithScheme(testScheme),
+				Log:    ctrl.Log.WithName("customingressmanager"),
+				Scheme: runtime.NewScheme(),
+			},
+			args: args{
+				ingressName: "testsvc-ingress",
+			},
+			want:    nil,
 			wantErr: false,
 		},
 	}
@@ -245,7 +258,7 @@ func TestCustomIngressManagerReconciler_CreateIngressForService(t *testing.T) {
 		wantErr bool
 	}{
 		{
-			name: "valid",
+			name: "Valid",
 			fields: fields{
 				Client: clientFaker.NewFakeClient(),
 				Log:    ctrl.Log.WithName("customingressmanager"),
@@ -298,7 +311,7 @@ func TestCustomIngressManagerReconciler_CreateClusterIssuerForService(t *testing
 		wantErr bool
 	}{
 		{
-			name: "valid",
+			name: "Valid",
 			fields: fields{
 				Client: clientFaker.NewFakeClientWithScheme(testScheme),
 				Log:    ctrl.Log.WithName("customingressmanager"),
