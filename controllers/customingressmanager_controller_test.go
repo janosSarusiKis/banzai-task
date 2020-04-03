@@ -17,10 +17,13 @@ limitations under the License.
 package controllers
 
 import (
+	"reflect"
 	"testing"
 
 	"github.com/go-logr/logr"
+	v1alpha3 "github.com/jetstack/cert-manager/pkg/apis/certmanager/v1alpha3"
 	corev1 "k8s.io/api/core/v1"
+	v1beta1 "k8s.io/api/extensions/v1beta1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -156,6 +159,169 @@ func TestCustomIngressManagerReconciler_IsValidService(t *testing.T) {
 			}
 			if got := r.IsValidService(tt.args.service); got != tt.want {
 				t.Errorf("CustomIngressManagerReconciler.IsValidService() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+// TODO: make this work
+func TestCustomIngressManagerReconciler_GetIngressByName(t *testing.T) {
+	testIngress := &v1beta1.Ingress{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "testsvc-ingress",
+			Namespace: "test",
+		},
+	}
+
+	type fields struct {
+		Client client.Client
+		Log    logr.Logger
+		Scheme *runtime.Scheme
+	}
+	type args struct {
+		ingressName string
+	}
+	tests := []struct {
+		name    string
+		fields  fields
+		args    args
+		want    *v1beta1.Ingress
+		wantErr bool
+	}{
+		// TODO: Add test cases.
+		{
+			name: "valid",
+			fields: fields{
+				Client: clientFaker.NewFakeClient(),
+				Log:    ctrl.Log.WithName("customingressmanager"),
+				Scheme: runtime.NewScheme(),
+			},
+			args: args{
+				ingressName: "testsvc-ingress",
+			},
+			want:    testIngress,
+			wantErr: false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			r := &CustomIngressManagerReconciler{
+				Client: tt.fields.Client,
+				Log:    tt.fields.Log,
+				Scheme: tt.fields.Scheme,
+			}
+
+			got, err := r.GetIngressByName(tt.args.ingressName)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("CustomIngressManagerReconciler.GetIngressByName() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("CustomIngressManagerReconciler.GetIngressByName() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestCustomIngressManagerReconciler_CreateIngressForService(t *testing.T) {
+	type fields struct {
+		Client client.Client
+		Log    logr.Logger
+		Scheme *runtime.Scheme
+	}
+	type args struct {
+		service corev1.Service
+	}
+	tests := []struct {
+		name    string
+		fields  fields
+		args    args
+		wantErr bool
+	}{
+		// TODO: Add test cases.
+		{
+			name: "valid",
+			fields: fields{
+				Client: clientFaker.NewFakeClient(),
+				Log:    ctrl.Log.WithName("customingressmanager"),
+				Scheme: runtime.NewScheme(),
+			},
+			args: args{
+				service: corev1.Service{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:        "testsvc",
+						Namespace:   "default",
+						Annotations: map[string]string{"domain": "test.com", "email": "tes@test.com"},
+						Labels:      map[string]string{"feladat.banzaicloud.io/ingress": "secure"},
+					},
+				},
+			},
+			wantErr: false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			r := &CustomIngressManagerReconciler{
+				Client: tt.fields.Client,
+				Log:    tt.fields.Log,
+				Scheme: tt.fields.Scheme,
+			}
+			if err := r.CreateIngressForService(tt.args.service); (err != nil) != tt.wantErr {
+				t.Errorf("CustomIngressManagerReconciler.CreateIngressForService() error = %v, wantErr %v", err, tt.wantErr)
+			}
+		})
+	}
+}
+
+// TODO: make this work
+func TestCustomIngressManagerReconciler_CreateClusterIssuerForService(t *testing.T) {
+	testScheme := runtime.NewScheme()
+	_ = v1alpha3.AddToScheme(testScheme)
+
+	type fields struct {
+		Client client.Client
+		Log    logr.Logger
+		Scheme *runtime.Scheme
+	}
+	type args struct {
+		service corev1.Service
+	}
+	tests := []struct {
+		name    string
+		fields  fields
+		args    args
+		wantErr bool
+	}{
+		// TODO: Add test cases.
+		{
+			name: "valid",
+			fields: fields{
+				Client: clientFaker.NewFakeClient(),
+				Log:    ctrl.Log.WithName("customingressmanager"),
+				Scheme: testScheme,
+			},
+			args: args{
+				service: corev1.Service{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:        "testsvc",
+						Namespace:   "default",
+						Annotations: map[string]string{"domain": "test.com", "email": "tes@test.com"},
+						Labels:      map[string]string{"feladat.banzaicloud.io/ingress": "secure"},
+					},
+				},
+			},
+			wantErr: false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			r := &CustomIngressManagerReconciler{
+				Client: tt.fields.Client,
+				Log:    tt.fields.Log,
+				Scheme: tt.fields.Scheme,
+			}
+			if err := r.CreateClusterIssuerForService(tt.args.service); (err != nil) != tt.wantErr {
+				t.Errorf("CustomIngressManagerReconciler.CreateClusterIssuerForService() error = %v, wantErr %v", err, tt.wantErr)
 			}
 		})
 	}
