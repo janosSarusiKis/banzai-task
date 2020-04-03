@@ -89,7 +89,7 @@ func (r *CustomIngressManagerReconciler) Reconcile(req ctrl.Request) (ctrl.Resul
 		}
 
 		if existingClusterIssuer == nil {
-			if err := r.CreateClusterIssuerForSerive(service); err != nil {
+			if err := r.CreateClusterIssuerForService(service); err != nil {
 				return ctrl.Result{}, client.IgnoreNotFound(err)
 			}
 		}
@@ -223,7 +223,7 @@ func (r *CustomIngressManagerReconciler) CreateIngressForService(service corev1.
 	return nil
 }
 
-func (r *CustomIngressManagerReconciler) CreateClusterIssuerForSerive(service corev1.Service) error {
+func (r *CustomIngressManagerReconciler) CreateClusterIssuerForService(service corev1.Service) error {
 	ctx := context.Background()
 	clusterIssuer := v1alpha3.ClusterIssuer{
 		ObjectMeta: metav1.ObjectMeta{
