@@ -117,10 +117,9 @@ func (r *CustomIngressManagerReconciler) GetIngressByServiceName(ingressName str
 		return nil, err
 	}
 
-	for i := range currentIngresses.Items {
-		if currentIngresses.Items[i].ObjectMeta.Name == ingressName {
+	for _, ingress := range currentIngresses.Items {
+		if ingress.ObjectMeta.Name == ingressName {
 			r.Log.Info("Ingress already there")
-			var ingress v1beta1.Ingress = currentIngresses.Items[i]
 
 			return &ingress, nil
 		}
@@ -136,10 +135,9 @@ func (r *CustomIngressManagerReconciler) GetClusterIssuerByServiceName(clusterIs
 		return nil, err
 	}
 
-	for i := range currentClusterIssuers.Items {
-		if currentClusterIssuers.Items[i].ObjectMeta.Name == clusterIssuerName {
+	for _, clusterIssuer := range currentClusterIssuers.Items {
+		if clusterIssuer.ObjectMeta.Name == clusterIssuerName {
 			r.Log.Info("ClusterIssuer already there")
-			var clusterIssuer v1alpha3.ClusterIssuer = currentClusterIssuers.Items[i]
 
 			return &clusterIssuer, nil
 		}
