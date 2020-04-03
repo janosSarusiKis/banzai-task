@@ -164,7 +164,6 @@ func TestCustomIngressManagerReconciler_IsValidService(t *testing.T) {
 	}
 }
 
-// TODO: make this work
 func TestCustomIngressManagerReconciler_GetIngressByName(t *testing.T) {
 	testIngress := &v1beta1.Ingress{
 		ObjectMeta: metav1.ObjectMeta{
@@ -172,6 +171,16 @@ func TestCustomIngressManagerReconciler_GetIngressByName(t *testing.T) {
 			Namespace: "test",
 		},
 	}
+
+	testIngresses := &v1beta1.IngressList{
+		Items: []v1beta1.Ingress{
+			*testIngress,
+		},
+	}
+
+	testScheme := runtime.NewScheme()
+	_ = v1alpha3.AddToScheme(testScheme)
+	_ = v1beta1.AddToScheme(testScheme)
 
 	type fields struct {
 		Client client.Client
@@ -188,11 +197,10 @@ func TestCustomIngressManagerReconciler_GetIngressByName(t *testing.T) {
 		want    *v1beta1.Ingress
 		wantErr bool
 	}{
-		// TODO: Add test cases.
 		{
 			name: "valid",
 			fields: fields{
-				Client: clientFaker.NewFakeClient(),
+				Client: clientFaker.NewFakeClientWithScheme(testScheme, testIngresses),
 				Log:    ctrl.Log.WithName("customingressmanager"),
 				Scheme: runtime.NewScheme(),
 			},
@@ -256,6 +264,7 @@ func TestCustomIngressManagerReconciler_CreateIngressForService(t *testing.T) {
 					},
 				},
 			},
+
 			wantErr: false,
 		},
 	}
@@ -273,7 +282,6 @@ func TestCustomIngressManagerReconciler_CreateIngressForService(t *testing.T) {
 	}
 }
 
-// TODO: make this work
 func TestCustomIngressManagerReconciler_CreateClusterIssuerForService(t *testing.T) {
 	testScheme := runtime.NewScheme()
 	_ = v1alpha3.AddToScheme(testScheme)
@@ -296,7 +304,7 @@ func TestCustomIngressManagerReconciler_CreateClusterIssuerForService(t *testing
 		{
 			name: "valid",
 			fields: fields{
-				Client: clientFaker.NewFakeClient(),
+				Client: clientFaker.NewFakeClientWithScheme(testScheme),
 				Log:    ctrl.Log.WithName("customingressmanager"),
 				Scheme: testScheme,
 			},
