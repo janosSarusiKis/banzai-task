@@ -130,7 +130,7 @@ func TestCustomIngressManagerReconciler_IsValidService(t *testing.T) {
 			want: false,
 		},
 		{
-			name: "NoValidLabe",
+			name: "NoValidLabel",
 			fields: fields{
 				Client: clientFaker.NewFakeClient(),
 				Log:    ctrl.Log.WithName("customingressmanager"),
@@ -165,19 +165,11 @@ func TestCustomIngressManagerReconciler_IsValidService(t *testing.T) {
 func TestCustomIngressManagerReconciler_GetIngressByName(t *testing.T) {
 	testIngress := &v1beta1.Ingress{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      "testsvc-ingress",
-			Namespace: "test",
-		},
-	}
-
-	testIngresses := &v1beta1.IngressList{
-		Items: []v1beta1.Ingress{
-			*testIngress,
+			Name: "testsvc-ingress",
 		},
 	}
 
 	testScheme := runtime.NewScheme()
-	_ = v1alpha3.AddToScheme(testScheme)
 	_ = v1beta1.AddToScheme(testScheme)
 
 	type fields struct {
@@ -198,7 +190,7 @@ func TestCustomIngressManagerReconciler_GetIngressByName(t *testing.T) {
 		{
 			name: "Valid",
 			fields: fields{
-				Client: clientFaker.NewFakeClientWithScheme(testScheme, testIngresses),
+				Client: clientFaker.NewFakeClientWithScheme(testScheme, testIngress),
 				Log:    ctrl.Log.WithName("customingressmanager"),
 				Scheme: runtime.NewScheme(),
 			},
@@ -235,8 +227,10 @@ func TestCustomIngressManagerReconciler_GetIngressByName(t *testing.T) {
 				t.Errorf("CustomIngressManagerReconciler.GetIngressByName() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
-			if !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("CustomIngressManagerReconciler.GetIngressByName() = %v, want %v", got, tt.want)
+			if tt.want != nil {
+				if !reflect.DeepEqual(got.ObjectMeta, tt.want.ObjectMeta) {
+					t.Errorf("CustomIngressManagerReconciler.GetIngressByName() = %v, want %v", got, tt.want)
+				}
 			}
 		})
 	}
@@ -343,6 +337,63 @@ func TestCustomIngressManagerReconciler_CreateOrUpdateClusterIssuerForService(t 
 			}
 			if err := r.CreateOrUpdateClusterIssuerForService(tt.args.service, tt.args.existingClusterIssuer); (err != nil) != tt.wantErr {
 				t.Errorf("CustomIngressManagerReconciler.CreateClusterIssuerForService() error = %v, wantErr %v", err, tt.wantErr)
+			}
+		})
+	}
+}
+
+func TestCustomIngressManagerReconciler_GetClusterIssuerByName(t *testing.T) {
+	testScheme := runtime.NewScheme()
+	_ = v1alpha3.AddToScheme(testScheme)
+
+	testClusterIssuer := v1alpha3.ClusterIssuer{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "testClusterIssuer",
+		},
+	}
+	type fields struct {
+		Client client.Client
+		Log    logr.Logger
+		Scheme *runtime.Scheme
+	}
+	type args struct {
+		clusterIssuerName string
+	}
+	tests := []struct {
+		name    string
+		fields  fields
+		args    args
+		want    *v1alpha3.ClusterIssuer
+		wantErr bool
+	}{
+		{
+			name: "Valid",
+			fields: fields{
+				Client: clientFaker.NewFakeClientWithScheme(testScheme, &testClusterIssuer),
+				Log:    ctrl.Log.WithName("customingressmanager"),
+				Scheme: runtime.NewScheme(),
+			},
+			args: args{
+				clusterIssuerName: "testClusterIssuer",
+			},
+			want:    &testClusterIssuer,
+			wantErr: false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			r := &CustomIngressManagerReconciler{
+				Client: tt.fields.Client,
+				Log:    tt.fields.Log,
+				Scheme: tt.fields.Scheme,
+			}
+			got, err := r.GetClusterIssuerByName(tt.args.clusterIssuerName)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("CustomIngressManagerReconciler.GetClusterIssuerByName() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if !reflect.DeepEqual(got.ObjectMeta, tt.want.ObjectMeta) {
+				t.Errorf("CustomIngressManagerReconciler.GetClusterIssuerByName() = %v, want %v", got, tt.want)
 			}
 		})
 	}
