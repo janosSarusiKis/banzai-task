@@ -30,6 +30,7 @@ import (
 	v1beta1 "k8s.io/api/extensions/v1beta1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
+	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -59,16 +60,25 @@ func (r *CustomIngressManagerReconciler) Reconcile(req ctrl.Request) (ctrl.Resul
 
 	var service corev1.Service
 	if err := r.Get(ctx, req.NamespacedName, &service); err != nil {
-		log.Error(err, "Unable to fetch the Service")
+		log.Info("service notnd: " + req.Name + " in " + req.Namespace + " namespace")
 
 		existingIngress, err := r.GetIngressByName(CreateIngressName(req.NamespacedName.Name))
-		existingClusterIssuer, err := r.GetClusterIssuerByName(CreateClusterIssuerName(req.NamespacedName.Name))
+		if err != nil && !errors.IsNotFound(err) {
+			return ctrl.Result{}, err
+		}
 
 		if existingIngress != nil {
+			log.Info("deleting existing ingress")
 			r.Delete(ctx, existingIngress)
 		}
 
+		existingClusterIssuer, err := r.GetClusterIssuerByName(CreateClusterIssuerName(req.NamespacedName.Name))
+		if err != nil && !errors.IsNotFound(err) {
+			return ctrl.Result{}, err
+		}
+
 		if existingClusterIssuer != nil {
+			log.Info("deleting existing cluster issuer")
 			r.Delete(ctx, existingClusterIssuer)
 		}
 
@@ -76,7 +86,7 @@ func (r *CustomIngressManagerReconciler) Reconcile(req ctrl.Request) (ctrl.Resul
 	}
 
 	if r.IsValidService(&service) {
-		log.Info("Check if ingress already exists")
+		log.Info("check if ingress already exists")
 		existingIngress, innerIngressError := r.GetIngressByName(CreateIngressName(service.Name))
 		existingClusterIssuer, innerClusterIssuerError := r.GetClusterIssuerByName(CreateClusterIssuerName(service.Name))
 
@@ -149,26 +159,26 @@ func (r *CustomIngressManagerReconciler) GetClusterIssuerByName(clusterIssuerNam
 func (r *CustomIngressManagerReconciler) IsValidService(service *corev1.Service) bool {
 	regExValidaton := regexp.MustCompile("^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$")
 
-	r.Log.Info("Validating service")
+	r.Log.Info("validating service")
 	if customIngressLabelValue, ok := service.ObjectMeta.Labels[CustomIngressLabel]; !ok || customIngressLabelValue != customIngressLabelValue {
-		r.Log.Info("No custom label")
+		r.Log.Info("no custom label")
 
 		return false
 	}
 
 	if domainLabelValue, ok := service.ObjectMeta.Annotations[DomainLabel]; !ok || !isd.IsDomain(domainLabelValue) {
-		r.Log.Info("Invalid domain name: " + domainLabelValue)
+		r.Log.Info("invalid domain name: " + domainLabelValue)
 
 		return false
 	}
 
 	if emailLabelValue, ok := service.ObjectMeta.Annotations[EmailLabel]; !ok || !regExValidaton.MatchString(emailLabelValue) {
-		r.Log.Info("Invalid email address: " + emailLabelValue)
+		r.Log.Info("invalid email address: " + emailLabelValue)
 
 		return false
 	}
 
-	r.Log.Info("Valid service found")
+	r.Log.Info("valid service found")
 
 	return true
 }
@@ -209,16 +219,16 @@ func (r *CustomIngressManagerReconciler) CreateIngressForService(service corev1.
 		},
 	}
 
-	log.Info("Try to create Ingress")
+	log.Info("try to create Ingress")
 	if err := r.Create(ctx, &ingress); err != nil {
-		log.Error(err, "Unable to create the Ingress")
+		log.Error(err, "unable to create the Ingress")
 		// we'll ignore not-found errors, since they can't be fixed by an immediate
 		// requeue (we'll need to wait for a new notification), and we can get them
 		// on deleted requests.
 		return client.IgnoreNotFound(err)
 	}
 
-	log.Info("Ingress created")
+	log.Info("ingress created")
 
 	return nil
 }
@@ -240,9 +250,9 @@ func (r *CustomIngressManagerReconciler) CreateClusterIssuerForService(service c
 		},
 	}
 
-	r.Log.Info("Try to create ClusterIssuer")
+	r.Log.Info("try to create ClusterIssuer")
 	if err := r.Create(ctx, &clusterIssuer); err != nil {
-		log.Error(err, "Unable to create the Cluster issuer")
+		log.Error(err, "unable to create the ClusterIssuer")
 		// we'll ignore not-found errors, since they can't be fixed by an immediate
 		// requeue (we'll need to wait for a new notification), and we can get them
 		// on deleted requests.
