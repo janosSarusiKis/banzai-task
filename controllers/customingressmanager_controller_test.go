@@ -242,14 +242,15 @@ func TestCustomIngressManagerReconciler_GetIngressByName(t *testing.T) {
 	}
 }
 
-func TestCustomIngressManagerReconciler_CreateIngressForService(t *testing.T) {
+func TestCustomIngressManagerReconciler_CreateOrUpdateIngressForService(t *testing.T) {
 	type fields struct {
 		Client client.Client
 		Log    logr.Logger
 		Scheme *runtime.Scheme
 	}
 	type args struct {
-		service corev1.Service
+		service         corev1.Service
+		existingIngress *v1beta1.Ingress
 	}
 	tests := []struct {
 		name    string
@@ -273,6 +274,7 @@ func TestCustomIngressManagerReconciler_CreateIngressForService(t *testing.T) {
 						Labels:      map[string]string{"feladat.banzaicloud.io/ingress": "secure"},
 					},
 				},
+				existingIngress: &v1beta1.Ingress{},
 			},
 
 			wantErr: false,
@@ -285,7 +287,7 @@ func TestCustomIngressManagerReconciler_CreateIngressForService(t *testing.T) {
 				Log:    tt.fields.Log,
 				Scheme: tt.fields.Scheme,
 			}
-			if err := r.CreateIngressForService(tt.args.service); (err != nil) != tt.wantErr {
+			if err := r.CreateOrUpdateIngressForService(tt.args.service, tt.args.existingIngress); (err != nil) != tt.wantErr {
 				t.Errorf("CustomIngressManagerReconciler.CreateIngressForService() error = %v, wantErr %v", err, tt.wantErr)
 			}
 		})

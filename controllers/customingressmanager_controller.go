@@ -107,10 +107,8 @@ func (r *CustomIngressManagerReconciler) Reconcile(req ctrl.Request) (ctrl.Resul
 			return ctrl.Result{}, client.IgnoreNotFound(err)
 		}
 
-		if existingIngress == nil {
-			if err := r.CreateIngressForService(service); err != nil {
-				return ctrl.Result{}, client.IgnoreNotFound(err)
-			}
+		if err := r.CreateOrUpdateIngressForService(service, existingIngress); err != nil {
+			return ctrl.Result{}, client.IgnoreNotFound(err)
 		}
 	}
 
@@ -190,7 +188,7 @@ func (r *CustomIngressManagerReconciler) IsValidService(service *corev1.Service)
 	return true
 }
 
-func (r *CustomIngressManagerReconciler) CreateIngressForService(service corev1.Service) error {
+func (r *CustomIngressManagerReconciler) CreateOrUpdateIngressForService(service corev1.Service, existingIngress *v1beta1.Ingress) error {
 	ctx := context.Background()
 	ingress := v1beta1.Ingress{
 		ObjectMeta: metav1.ObjectMeta{
@@ -226,6 +224,19 @@ func (r *CustomIngressManagerReconciler) CreateIngressForService(service corev1.
 		},
 	}
 
+	if existingIngress != nil {
+		if !reflect.DeepEqual(existingIngress, ingress) {
+			log.Info("updating Ingress")
+			if err := r.Update(ctx, &ingress); err != nil {
+				log.Error(err, "unable to update the Ingress")
+				// we'll ignore not-found errors, since they can't be fixed by an immediate
+				// requeue (we'll need to wait for a new notification), and we can get them
+				// on deleted requests.
+				return client.IgnoreNotFound(err)
+			}
+		}
+	}
+
 	log.Info("try to create Ingress")
 	if err := r.Create(ctx, &ingress); err != nil {
 		log.Error(err, "unable to create the Ingress")
@@ -257,7 +268,6 @@ func (r *CustomIngressManagerReconciler) CreateOrUpdateClusterIssuerForService(s
 		},
 	}
 
-	r.Log.Info("try to create ClusterIssuer")
 	if existingClusterIssuer != nil {
 		if !reflect.DeepEqual(existingClusterIssuer, clusterIssuer) {
 			log.Info("updating ClusterIssuer")
@@ -271,6 +281,7 @@ func (r *CustomIngressManagerReconciler) CreateOrUpdateClusterIssuerForService(s
 		}
 	}
 
+	r.Log.Info("try to create ClusterIssuer")
 	if err := r.Create(ctx, &clusterIssuer); err != nil {
 		log.Error(err, "unable to create the ClusterIssuer")
 		// we'll ignore not-found errors, since they can't be fixed by an immediate
