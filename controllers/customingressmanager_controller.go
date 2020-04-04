@@ -29,6 +29,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	v1beta1 "k8s.io/api/extensions/v1beta1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/types"
 
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -69,7 +70,9 @@ func (r *CustomIngressManagerReconciler) Reconcile(req ctrl.Request) (ctrl.Resul
 
 		if existingIngress != nil {
 			log.Info("deleting existing ingress")
-			r.Delete(ctx, existingIngress)
+			if err := r.Delete(ctx, existingIngress); err != nil {
+				return ctrl.Result{}, err
+			}
 		}
 
 		existingClusterIssuer, err := r.GetClusterIssuerByName(CreateClusterIssuerName(req.NamespacedName.Name))
@@ -79,7 +82,9 @@ func (r *CustomIngressManagerReconciler) Reconcile(req ctrl.Request) (ctrl.Resul
 
 		if existingClusterIssuer != nil {
 			log.Info("deleting existing cluster issuer")
-			r.Delete(ctx, existingClusterIssuer)
+			if err := r.Delete(ctx, existingClusterIssuer); err != nil {
+				return ctrl.Result{}, err
+			}
 		}
 
 		return ctrl.Result{}, client.IgnoreNotFound(err)
@@ -87,15 +92,14 @@ func (r *CustomIngressManagerReconciler) Reconcile(req ctrl.Request) (ctrl.Resul
 
 	if r.IsValidService(&service) {
 		log.Info("check if ingress already exists")
-		existingIngress, innerIngressError := r.GetIngressByName(CreateIngressName(service.Name))
-		existingClusterIssuer, innerClusterIssuerError := r.GetClusterIssuerByName(CreateClusterIssuerName(service.Name))
-
-		if innerIngressError != nil {
-			return ctrl.Result{}, innerIngressError
+		existingIngress, err := r.GetIngressByName(CreateIngressName(service.Name))
+		if err != nil {
+			return ctrl.Result{}, err
 		}
 
-		if innerClusterIssuerError != nil {
-			return ctrl.Result{}, innerClusterIssuerError
+		existingClusterIssuer, err := r.GetClusterIssuerByName(CreateClusterIssuerName(service.Name))
+		if err != nil {
+			return ctrl.Result{}, err
 		}
 
 		if existingClusterIssuer == nil {
@@ -122,58 +126,62 @@ func (r *CustomIngressManagerReconciler) SetupWithManager(mgr ctrl.Manager) erro
 
 func (r *CustomIngressManagerReconciler) GetIngressByName(ingressName string) (*v1beta1.Ingress, error) {
 	ctx := context.Background()
-	var currentIngresses v1beta1.IngressList
-	if err := r.List(ctx, &currentIngresses); err != nil {
+	ingress := v1beta1.Ingress{}
+	namespacedName := types.NamespacedName{
+		Name: ingressName,
+	}
+
+	if err := r.Get(ctx, namespacedName, &ingress); err != nil {
+		if errors.IsNotFound(err) {
+			return nil, nil
+		}
+
 		return nil, err
 	}
 
-	for _, ingress := range currentIngresses.Items {
-		if ingress.ObjectMeta.Name == ingressName {
-			r.Log.Info("Ingress already there")
+	r.Log.Info("Ingress already there")
 
-			return &ingress, nil
-		}
-	}
-
-	return nil, nil
+	return &ingress, nil
 }
 
 func (r *CustomIngressManagerReconciler) GetClusterIssuerByName(clusterIssuerName string) (*v1alpha3.ClusterIssuer, error) {
 	ctx := context.Background()
-	var currentClusterIssuers v1alpha3.ClusterIssuerList
-	if err := r.List(ctx, &currentClusterIssuers); err != nil {
+	clusterIssuer := v1alpha3.ClusterIssuer{}
+	namespacedName := types.NamespacedName{
+		Name: clusterIssuerName,
+	}
+
+	if err := r.Get(ctx, namespacedName, &clusterIssuer); err != nil {
+		if errors.IsNotFound(err) {
+			return nil, nil
+		}
+
 		return nil, err
 	}
 
-	for _, clusterIssuer := range currentClusterIssuers.Items {
-		if clusterIssuer.ObjectMeta.Name == clusterIssuerName {
-			r.Log.Info("ClusterIssuer already there")
+	r.Log.Info("ClusterIssuer already there")
 
-			return &clusterIssuer, nil
-		}
-	}
-
-	return nil, nil
+	return &clusterIssuer, nil
 }
 
 func (r *CustomIngressManagerReconciler) IsValidService(service *corev1.Service) bool {
 	regExValidaton := regexp.MustCompile("^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$")
 
 	r.Log.Info("validating service")
-	if customIngressLabelValue, ok := service.ObjectMeta.Labels[CustomIngressLabel]; !ok || customIngressLabelValue != customIngressLabelValue {
+	if labelValue, ok := service.ObjectMeta.Labels[CustomIngressLabel]; !ok || labelValue != CustomIngressLabelValue {
 		r.Log.Info("no custom label")
 
 		return false
 	}
 
-	if domainLabelValue, ok := service.ObjectMeta.Annotations[DomainLabel]; !ok || !isd.IsDomain(domainLabelValue) {
-		r.Log.Info("invalid domain name: " + domainLabelValue)
+	if annotationValue, ok := service.ObjectMeta.Annotations[DomainLabel]; !ok || !isd.IsDomain(annotationValue) {
+		r.Log.Info("invalid domain name: " + annotationValue)
 
 		return false
 	}
 
-	if emailLabelValue, ok := service.ObjectMeta.Annotations[EmailLabel]; !ok || !regExValidaton.MatchString(emailLabelValue) {
-		r.Log.Info("invalid email address: " + emailLabelValue)
+	if annotationValue, ok := service.ObjectMeta.Annotations[EmailLabel]; !ok || !regExValidaton.MatchString(annotationValue) {
+		r.Log.Info("invalid email address: " + annotationValue)
 
 		return false
 	}
