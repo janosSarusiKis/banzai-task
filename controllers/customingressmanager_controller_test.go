@@ -292,7 +292,7 @@ func TestCustomIngressManagerReconciler_CreateIngressForService(t *testing.T) {
 	}
 }
 
-func TestCustomIngressManagerReconciler_CreateClusterIssuerForService(t *testing.T) {
+func TestCustomIngressManagerReconciler_CreateOrUpdateClusterIssuerForService(t *testing.T) {
 	testScheme := runtime.NewScheme()
 	_ = v1alpha3.AddToScheme(testScheme)
 
@@ -302,7 +302,8 @@ func TestCustomIngressManagerReconciler_CreateClusterIssuerForService(t *testing
 		Scheme *runtime.Scheme
 	}
 	type args struct {
-		service corev1.Service
+		service               corev1.Service
+		existingClusterIssuer *v1alpha3.ClusterIssuer
 	}
 	tests := []struct {
 		name    string
@@ -326,6 +327,7 @@ func TestCustomIngressManagerReconciler_CreateClusterIssuerForService(t *testing
 						Labels:      map[string]string{"feladat.banzaicloud.io/ingress": "secure"},
 					},
 				},
+				existingClusterIssuer: &v1alpha3.ClusterIssuer{},
 			},
 			wantErr: false,
 		},
@@ -337,7 +339,7 @@ func TestCustomIngressManagerReconciler_CreateClusterIssuerForService(t *testing
 				Log:    tt.fields.Log,
 				Scheme: tt.fields.Scheme,
 			}
-			if err := r.CreateClusterIssuerForService(tt.args.service); (err != nil) != tt.wantErr {
+			if err := r.CreateOrUpdateClusterIssuerForService(tt.args.service, tt.args.existingClusterIssuer); (err != nil) != tt.wantErr {
 				t.Errorf("CustomIngressManagerReconciler.CreateClusterIssuerForService() error = %v, wantErr %v", err, tt.wantErr)
 			}
 		})

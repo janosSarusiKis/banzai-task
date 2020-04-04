@@ -18,6 +18,7 @@ package controllers
 
 import (
 	"context"
+	"reflect"
 	"regexp"
 
 	isd "github.com/jbenet/go-is-domain"
@@ -102,10 +103,8 @@ func (r *CustomIngressManagerReconciler) Reconcile(req ctrl.Request) (ctrl.Resul
 			return ctrl.Result{}, err
 		}
 
-		if existingClusterIssuer == nil {
-			if err := r.CreateClusterIssuerForService(service); err != nil {
-				return ctrl.Result{}, client.IgnoreNotFound(err)
-			}
+		if err := r.CreateOrUpdateClusterIssuerForService(service, existingClusterIssuer); err != nil {
+			return ctrl.Result{}, client.IgnoreNotFound(err)
 		}
 
 		if existingIngress == nil {
@@ -241,7 +240,7 @@ func (r *CustomIngressManagerReconciler) CreateIngressForService(service corev1.
 	return nil
 }
 
-func (r *CustomIngressManagerReconciler) CreateClusterIssuerForService(service corev1.Service) error {
+func (r *CustomIngressManagerReconciler) CreateOrUpdateClusterIssuerForService(service corev1.Service, existingClusterIssuer *v1alpha3.ClusterIssuer) error {
 	ctx := context.Background()
 	clusterIssuer := v1alpha3.ClusterIssuer{
 		ObjectMeta: metav1.ObjectMeta{
@@ -259,6 +258,19 @@ func (r *CustomIngressManagerReconciler) CreateClusterIssuerForService(service c
 	}
 
 	r.Log.Info("try to create ClusterIssuer")
+	if existingClusterIssuer != nil {
+		if !reflect.DeepEqual(existingClusterIssuer, clusterIssuer) {
+			log.Info("updating ClusterIssuer")
+			if err := r.Update(ctx, &clusterIssuer); err != nil {
+				log.Error(err, "unable to update the ClusterIssuer")
+				// we'll ignore not-found errors, since they can't be fixed by an immediate
+				// requeue (we'll need to wait for a new notification), and we can get them
+				// on deleted requests.
+				return client.IgnoreNotFound(err)
+			}
+		}
+	}
+
 	if err := r.Create(ctx, &clusterIssuer); err != nil {
 		log.Error(err, "unable to create the ClusterIssuer")
 		// we'll ignore not-found errors, since they can't be fixed by an immediate
