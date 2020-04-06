@@ -31,6 +31,15 @@ import (
 	clientFaker "sigs.k8s.io/controller-runtime/pkg/client/fake"
 )
 
+var (
+	testScheme = runtime.NewScheme()
+)
+
+func InitTestScheme() {
+	_ = v1beta1.AddToScheme(testScheme)
+	_ = v1alpha3.AddToScheme(testScheme)
+}
+
 func TestCreateClusterIssuerName(t *testing.T) {
 	type args struct {
 		name string
@@ -58,6 +67,8 @@ func TestCreateClusterIssuerName(t *testing.T) {
 }
 
 func TestCustomIngressManagerReconciler_IsValidService(t *testing.T) {
+	InitTestScheme()
+
 	type fields struct {
 		Client client.Client
 		Log    logr.Logger
@@ -75,7 +86,7 @@ func TestCustomIngressManagerReconciler_IsValidService(t *testing.T) {
 		{
 			name: "Valid",
 			fields: fields{
-				Client: clientFaker.NewFakeClient(),
+				Client: clientFaker.NewFakeClientWithScheme(testScheme),
 				Log:    ctrl.Log.WithName("customingressmanager"),
 				Scheme: runtime.NewScheme(),
 			},
@@ -169,8 +180,7 @@ func TestCustomIngressManagerReconciler_GetIngressByName(t *testing.T) {
 		},
 	}
 
-	testScheme := runtime.NewScheme()
-	_ = v1beta1.AddToScheme(testScheme)
+	InitTestScheme()
 
 	type fields struct {
 		Client client.Client
@@ -237,6 +247,8 @@ func TestCustomIngressManagerReconciler_GetIngressByName(t *testing.T) {
 }
 
 func TestCustomIngressManagerReconciler_CreateOrUpdateIngressForService(t *testing.T) {
+	InitTestScheme()
+
 	type fields struct {
 		Client client.Client
 		Log    logr.Logger
@@ -255,7 +267,7 @@ func TestCustomIngressManagerReconciler_CreateOrUpdateIngressForService(t *testi
 		{
 			name: "Valid",
 			fields: fields{
-				Client: clientFaker.NewFakeClient(),
+				Client: clientFaker.NewFakeClientWithScheme(testScheme),
 				Log:    ctrl.Log.WithName("customingressmanager"),
 				Scheme: runtime.NewScheme(),
 			},
@@ -289,8 +301,7 @@ func TestCustomIngressManagerReconciler_CreateOrUpdateIngressForService(t *testi
 }
 
 func TestCustomIngressManagerReconciler_CreateOrUpdateClusterIssuerForService(t *testing.T) {
-	testScheme := runtime.NewScheme()
-	_ = v1alpha3.AddToScheme(testScheme)
+	InitTestScheme()
 
 	type fields struct {
 		Client client.Client
@@ -343,8 +354,7 @@ func TestCustomIngressManagerReconciler_CreateOrUpdateClusterIssuerForService(t 
 }
 
 func TestCustomIngressManagerReconciler_GetClusterIssuerByName(t *testing.T) {
-	testScheme := runtime.NewScheme()
-	_ = v1alpha3.AddToScheme(testScheme)
+	InitTestScheme()
 
 	testClusterIssuer := v1alpha3.ClusterIssuer{
 		ObjectMeta: metav1.ObjectMeta{
