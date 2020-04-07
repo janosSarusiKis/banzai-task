@@ -27,6 +27,7 @@ import (
 	"github.com/go-logr/logr"
 	cmacme "github.com/jetstack/cert-manager/pkg/apis/acme/v1alpha3"
 	v1alpha3 "github.com/jetstack/cert-manager/pkg/apis/certmanager/v1alpha3"
+	cmeta1 "github.com/jetstack/cert-manager/pkg/apis/meta/v1"
 	corev1 "k8s.io/api/core/v1"
 	v1beta1 "k8s.io/api/extensions/v1beta1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -98,6 +99,7 @@ func (r *CustomIngressManagerReconciler) Reconcile(req ctrl.Request) (ctrl.Resul
 			return ctrl.Result{}, err
 		}
 
+		log.Info("check if clusterissuer already exists")
 		existingClusterIssuer, err := r.GetClusterIssuerByName(CreateClusterIssuerName(service.Name))
 		if err != nil {
 			return ctrl.Result{}, err
@@ -200,7 +202,7 @@ func (r *CustomIngressManagerReconciler) CreateOrUpdateIngressForService(service
 			TLS: []v1beta1.IngressTLS{
 				{
 					Hosts:      []string{service.ObjectMeta.Annotations[DomainLabel]},
-					SecretName: service.Name + "-secret",
+					SecretName: CreateSecretName(service.Namespace),
 				},
 			},
 			Rules: []v1beta1.IngressRule{
@@ -261,8 +263,13 @@ func (r *CustomIngressManagerReconciler) CreateOrUpdateClusterIssuerForService(s
 		Spec: v1alpha3.IssuerSpec{
 			IssuerConfig: v1alpha3.IssuerConfig{
 				ACME: &cmacme.ACMEIssuer{
-					Server: "https://acme-staging.api.letsencrypt.org/directory",
+					Server: "https://acme-staging-v02.api.letsencrypt.org/directory",
 					Email:  service.ObjectMeta.Annotations[EmailLabel],
+					PrivateKey: cmeta1.SecretKeySelector{
+						LocalObjectReference: cmeta1.LocalObjectReference{
+							Name: CreateSecretName(service.Namespace),
+						},
+					},
 				},
 			},
 		},
@@ -299,4 +306,8 @@ func CreateIngressName(name string) string {
 
 func CreateClusterIssuerName(name string) string {
 	return name + "-lets-encrypt-staging"
+}
+
+func CreateSecretName(name string) string {
+	return name + "-secret"
 }
