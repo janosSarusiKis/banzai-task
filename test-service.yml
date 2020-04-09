@@ -5,7 +5,7 @@ metadata:
   labels:
     feladat.banzaicloud.io/ingress: secure
   annotations:
-    domain: ug0jcqu276koi.spotguidetest.beta.banzaicloud.io
+    domain: example.com
     email: janos.sarusikis@gmail.com 
 spec:
   selector:
