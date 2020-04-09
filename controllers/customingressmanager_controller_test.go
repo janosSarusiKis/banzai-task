@@ -176,7 +176,8 @@ func TestCustomIngressManagerReconciler_IsValidService(t *testing.T) {
 func TestCustomIngressManagerReconciler_GetIngressByName(t *testing.T) {
 	testIngress := &v1beta1.Ingress{
 		ObjectMeta: metav1.ObjectMeta{
-			Name: "testsvc-ingress",
+			Name:      "testsvc-ingress",
+			Namespace: "default",
 		},
 	}
 
@@ -188,7 +189,7 @@ func TestCustomIngressManagerReconciler_GetIngressByName(t *testing.T) {
 		Scheme *runtime.Scheme
 	}
 	type args struct {
-		ingressName string
+		ingressName, ingressNamespace string
 	}
 	tests := []struct {
 		name    string
@@ -205,7 +206,8 @@ func TestCustomIngressManagerReconciler_GetIngressByName(t *testing.T) {
 				Scheme: runtime.NewScheme(),
 			},
 			args: args{
-				ingressName: "testsvc-ingress",
+				ingressName:      "testsvc-ingress",
+				ingressNamespace: "default",
 			},
 			want:    testIngress,
 			wantErr: false,
@@ -218,7 +220,8 @@ func TestCustomIngressManagerReconciler_GetIngressByName(t *testing.T) {
 				Scheme: runtime.NewScheme(),
 			},
 			args: args{
-				ingressName: "testsvc-ingress",
+				ingressName:      "testsvc-ingress",
+				ingressNamespace: "default",
 			},
 			want:    nil,
 			wantErr: false,
@@ -232,7 +235,7 @@ func TestCustomIngressManagerReconciler_GetIngressByName(t *testing.T) {
 				Scheme: tt.fields.Scheme,
 			}
 
-			got, err := r.GetIngressByName(tt.args.ingressName)
+			got, err := r.GetIngressByName(tt.args.ingressName, tt.args.ingressNamespace)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("CustomIngressManagerReconciler.GetIngressByName() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -334,7 +337,7 @@ func TestCustomIngressManagerReconciler_CreateOrUpdateClusterIssuerForService(t 
 						Labels:      map[string]string{"feladat.banzaicloud.io/ingress": "secure"},
 					},
 				},
-				existingClusterIssuer: &v1alpha3.ClusterIssuer{},
+				existingClusterIssuer: nil,
 			},
 			wantErr: false,
 		},

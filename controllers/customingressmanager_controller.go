@@ -65,7 +65,7 @@ func (r *CustomIngressManagerReconciler) Reconcile(req ctrl.Request) (ctrl.Resul
 	if err := r.Get(ctx, req.NamespacedName, &service); err != nil {
 		log.Info("service notnd: " + req.Name + " in " + req.Namespace + " namespace")
 
-		existingIngress, err := r.GetIngressByName(CreateIngressName(req.NamespacedName.Name))
+		existingIngress, err := r.GetIngressByName(CreateIngressName(req.NamespacedName.Name), req.NamespacedName.Namespace)
 		if err != nil && !errors.IsNotFound(err) {
 			return ctrl.Result{}, err
 		}
@@ -94,7 +94,7 @@ func (r *CustomIngressManagerReconciler) Reconcile(req ctrl.Request) (ctrl.Resul
 
 	if r.IsValidService(&service) {
 		log.Info("check if ingress already exists")
-		existingIngress, err := r.GetIngressByName(CreateIngressName(service.Name))
+		existingIngress, err := r.GetIngressByName(CreateIngressName(service.Name), service.ObjectMeta.Namespace)
 		if err != nil {
 			return ctrl.Result{}, err
 		}
@@ -123,11 +123,12 @@ func (r *CustomIngressManagerReconciler) SetupWithManager(mgr ctrl.Manager) erro
 		Complete(r)
 }
 
-func (r *CustomIngressManagerReconciler) GetIngressByName(ingressName string) (*v1beta1.Ingress, error) {
+func (r *CustomIngressManagerReconciler) GetIngressByName(ingressName, namespace string) (*v1beta1.Ingress, error) {
 	ctx := context.Background()
 	ingress := v1beta1.Ingress{}
 	namespacedName := types.NamespacedName{
-		Name: ingressName,
+		Name:      ingressName,
+		Namespace: namespace,
 	}
 
 	if err := r.Get(ctx, namespacedName, &ingress); err != nil {
@@ -237,6 +238,8 @@ func (r *CustomIngressManagerReconciler) CreateOrUpdateIngressForService(service
 				return client.IgnoreNotFound(err)
 			}
 		}
+
+		return nil
 	}
 
 	log.Info("try to create Ingress")
@@ -257,8 +260,7 @@ func (r *CustomIngressManagerReconciler) CreateOrUpdateClusterIssuerForService(s
 	ctx := context.Background()
 	clusterIssuer := v1alpha3.ClusterIssuer{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      CreateClusterIssuerName(service.Name),
-			Namespace: service.Namespace,
+			Name: CreateClusterIssuerName(service.Name),
 		},
 		Spec: v1alpha3.IssuerSpec{
 			IssuerConfig: v1alpha3.IssuerConfig{
@@ -286,7 +288,9 @@ func (r *CustomIngressManagerReconciler) CreateOrUpdateClusterIssuerForService(s
 	}
 
 	if existingClusterIssuer != nil {
-		if !reflect.DeepEqual(existingClusterIssuer, clusterIssuer) {
+		if !reflect.DeepEqual(existingClusterIssuer.ObjectMeta.Name, clusterIssuer.ObjectMeta.Name) ||
+			!reflect.DeepEqual(existingClusterIssuer.Namespace, clusterIssuer.Namespace) ||
+			!reflect.DeepEqual(existingClusterIssuer.Spec.ACME.Email, clusterIssuer.Spec.ACME.Email) {
 			log.Info("updating ClusterIssuer")
 			if err := r.Update(ctx, &clusterIssuer); err != nil {
 				log.Error(err, "unable to update the ClusterIssuer")
@@ -296,6 +300,8 @@ func (r *CustomIngressManagerReconciler) CreateOrUpdateClusterIssuerForService(s
 				return client.IgnoreNotFound(err)
 			}
 		}
+
+		return nil
 	}
 
 	r.Log.Info("try to create ClusterIssuer")
