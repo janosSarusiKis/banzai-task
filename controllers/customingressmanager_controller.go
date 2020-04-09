@@ -270,6 +270,16 @@ func (r *CustomIngressManagerReconciler) CreateOrUpdateClusterIssuerForService(s
 							Name: CreateSecretName(service.Namespace),
 						},
 					},
+					Solvers: []cmacme.ACMEChallengeSolver{
+						{
+							HTTP01: &cmacme.ACMEChallengeSolverHTTP01{
+								// Not setting the Class or Name field will cause cert-manager to create
+								// new ingress resources that do not specify a class to solve challenges,
+								// which means all Ingress controllers should act on the ingresses.
+								Ingress: &cmacme.ACMEChallengeSolverHTTP01Ingress{},
+							},
+						},
+					},
 				},
 			},
 		},
@@ -301,7 +311,7 @@ func (r *CustomIngressManagerReconciler) CreateOrUpdateClusterIssuerForService(s
 }
 
 func CreateIngressName(name string) string {
-	return name + "-ingeress"
+	return name + "-ingress"
 }
 
 func CreateClusterIssuerName(name string) string {
