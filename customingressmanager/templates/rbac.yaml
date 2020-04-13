@@ -1,0 +1,75 @@
+{{- if .Values.rbac.enabled }}
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: {{ template "customingressmanager.fullname" . }}
+  namespace: {{ include "customingressmanager.namespace" . }}
+  labels:
+    app.kubernetes.io/name: {{ include "customingressmanager.name" . }}
+    helm.sh/chart: {{ include "customingressmanager.chart" . }}
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/managed-by: {{ .Release.Service }}
+---
+apiVersion: rbac.authorization.k8s.io/v1beta1
+kind: ClusterRole
+metadata:
+  name: {{ template "customingressmanager.fullname" . }}
+  labels:
+    app.kubernetes.io/name: {{ include "customingressmanager.name" . }}
+    helm.sh/chart: {{ include "customingressmanager.chart" . }}
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/managed-by: {{ .Release.Service }}
+rules:
+    - apiGroups:
+    - ""
+    resources:
+    - clusterissuers
+    - ingresses
+    - services
+    verbs:
+    - create
+    - delete
+    - get
+    - list
+    - update
+    - apiGroups:
+    - webapp.feladat.banzaicloud.io
+    resources:
+    - customingressmanagers
+    verbs:
+    - create
+    - delete
+    - get
+    - list
+    - patch
+    - update
+    - watch
+    - apiGroups:
+    - webapp.feladat.banzaicloud.io
+    resources:
+    - customingressmanagers/status
+    verbs:
+    - get
+    - patch
+    - update
+---
+apiVersion: rbac.authorization.k8s.io/v1beta1
+kind: ClusterRoleBinding
+metadata:
+  name: {{ template "customingressmanager.fullname" . }}
+  labels:
+    app.kubernetes.io/name: {{ include "customingressmanager.name" . }}
+    helm.sh/chart: {{ include "customingressmanager.chart" . }}
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/managed-by: {{ .Release.Service }}
+subjects:
+  - kind: ServiceAccount
+    name: {{ template "customingressmanager.fullname" . }}
+    namespace: {{ include "customingressmanager.namespace" . }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: {{ template "customingressmanager.fullname" . }}
+
+  {{- end }}
