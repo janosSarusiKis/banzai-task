@@ -21,38 +21,38 @@ metadata:
     app.kubernetes.io/instance: {{ .Release.Name }}
     app.kubernetes.io/managed-by: {{ .Release.Service }}
 rules:
-    - apiGroups:
-    - ""
+  - apiGroups:
+      - ""
     resources:
-    - clusterissuers
-    - ingresses
-    - services
+      - clusterissuers
+      - ingresses
+      - services
     verbs:
-    - create
-    - delete
-    - get
-    - list
-    - update
-    - apiGroups:
-    - webapp.feladat.banzaicloud.io
+      - create
+      - delete
+      - get
+      - list
+      - update
+  - apiGroups:
+      - webapp.feladat.banzaicloud.io
     resources:
-    - customingressmanagers
+      - customingressmanagers
     verbs:
-    - create
-    - delete
-    - get
-    - list
-    - patch
-    - update
-    - watch
-    - apiGroups:
-    - webapp.feladat.banzaicloud.io
+      - create
+      - delete
+      - get
+      - list
+      - patch
+      - update
+      - watch
+  - apiGroups:
+      - webapp.feladat.banzaicloud.io
     resources:
-    - customingressmanagers/status
+      - customingressmanagers/status
     verbs:
-    - get
-    - patch
-    - update
+      - get
+      - patch
+      - update
 ---
 apiVersion: rbac.authorization.k8s.io/v1beta1
 kind: ClusterRoleBinding

@@ -6,6 +6,7 @@ replicaCount: 1
 
 image:
   repository: janossarusikis/customingressmanager
+  tag: latest
   pullPolicy: IfNotPresent
 
 imagePullSecrets: []
