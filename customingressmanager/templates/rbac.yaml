@@ -23,6 +23,8 @@ metadata:
 rules:
   - apiGroups:
       - ""
+      - extensions
+      - cert-manager.io
     resources:
       - clusterissuers
       - ingresses
@@ -33,6 +35,7 @@ rules:
       - get
       - list
       - update
+      - watch
   - apiGroups:
       - webapp.feladat.banzaicloud.io
     resources:
@@ -53,6 +56,14 @@ rules:
       - get
       - patch
       - update
+  - apiGroups:
+      - ""
+    resources:
+      - namespaces
+    verbs:
+      - get
+      - list
+      - watch
 ---
 apiVersion: rbac.authorization.k8s.io/v1beta1
 kind: ClusterRoleBinding
