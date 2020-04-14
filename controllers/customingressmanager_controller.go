@@ -56,7 +56,8 @@ type CustomIngressManagerReconciler struct {
 
 // +kubebuilder:rbac:groups=webapp.feladat.banzaicloud.io,resources=customingressmanagers,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=webapp.feladat.banzaicloud.io,resources=customingressmanagers/status,verbs=get;update;patch
-// +kubebuilder:rbac:groups="",resources=services;ingresses;clusterissuers,verbs=get;list;create;update;delete
+// +kubebuilder:rbac:groups="",resources=services;ingresses;clusterissuers,verbs=get;list;create;update;delete,watch
+// +kubebuilder:rbac:groups=extensions;cert-manager.io,resources=services;ingresses;clusterissuers,verbs=get;list;create;update;watch
 
 func (r *CustomIngressManagerReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 	ctx := context.Background()
