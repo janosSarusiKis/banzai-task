@@ -4,6 +4,7 @@ metadata:
   name: testsvc
   labels:
     feladat.banzaicloud.io/ingress: secure
+    # set to "production" to isse certs from https://acme-v02.api.letsencrypt.org/directory 
     environment: staging
   annotations:
     domain: example.com

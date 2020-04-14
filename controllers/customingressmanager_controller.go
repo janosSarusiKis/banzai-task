@@ -264,7 +264,7 @@ func (r *CustomIngressManagerReconciler) CreateOrUpdateClusterIssuerForService(s
 	ctx := context.Background()
 
 	var letsencryptUrl string
-	if service.ObjectMeta.Annotations[EnvironmentLabel] == "production" {
+	if environmentLabelValue, ok := service.ObjectMeta.Labels[EnvironmentLabel]; !ok && environmentLabelValue == "production" {
 		letsencryptUrl = "https://acme-v02.api.letsencrypt.org/directory"
 	} else {
 		letsencryptUrl = "https://acme-staging-v02.api.letsencrypt.org/directory"
