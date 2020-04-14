@@ -1,11 +1,15 @@
-# BanzaiCloud feladat
+# BanzaiCloud task
 
-Feladat lírás: https://docs.google.com/document/d/1LDMmUPPjV3NhrtGbXSfSdshPcZvv7Sft5m_-q_aVycM/edit#heading=h.gjc0w6xygrw7
+Task description: https://docs.google.com/document/d/1LDMmUPPjV3NhrtGbXSfSdshPcZvv7Sft5m_-q_aVycM/edit#heading=h.gjc0w6xygrw7
 
 TL;DR:
-K8s operátor amely adott annotációval rendelkező service-ekhez automatikusan ingress-t készit valamint Let's encrypt és cert-manager használatával certificatet-t is előállít. 
+K8s operator which creates ingress and certifice for services with specified label. Certificate is issued by Let's encrypt.
 
-Kis help a local teszteléshez:
+### Cert-manager setup:
+
+kubectl apply --validate=false -f https://github.com/jetstack/cert-manager/releases/download/v0.14.1/cert-manager.yaml
+
+### Help for local test: 
 
 kind delete cluster --name test
 
@@ -15,8 +19,11 @@ kubectl apply --validate=false -f https://github.com/jetstack/cert-manager/relea
 
 kubectl apply -f test-service.yml
 
+### Helm commands
 
-Checks
+helm install-f values.yaml customingressmanager .
+
+### Checks
 
 kubectl get svc
 
