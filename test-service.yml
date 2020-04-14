@@ -4,6 +4,7 @@ metadata:
   name: testsvc
   labels:
     feladat.banzaicloud.io/ingress: secure
+    environment: staging
   annotations:
     domain: example.com
     email: janos.sarusikis@gmail.com 

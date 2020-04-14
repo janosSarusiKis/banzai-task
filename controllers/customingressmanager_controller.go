@@ -41,10 +41,11 @@ import (
 )
 
 const (
-	DomainLabel             = "domain"
-	EmailLabel              = "email"
+	DomainAnnotation        = "domain"
+	EmailAnnotation         = "email"
 	CustomIngressLabel      = "feladat.banzaicloud.io/ingress"
 	CustomIngressLabelValue = "secure"
+	EnvironmentLabel        = "environment"
 )
 
 // CustomIngressManagerReconciler reconciles a CustomIngressManager object
@@ -176,13 +177,13 @@ func (r *CustomIngressManagerReconciler) IsValidService(service *corev1.Service)
 		return false
 	}
 
-	if annotationValue, ok := service.ObjectMeta.Annotations[DomainLabel]; !ok || !isd.IsDomain(annotationValue) {
+	if annotationValue, ok := service.ObjectMeta.Annotations[DomainAnnotation]; !ok || !isd.IsDomain(annotationValue) {
 		r.Log.Info("invalid domain name: " + annotationValue)
 
 		return false
 	}
 
-	if annotationValue, ok := service.ObjectMeta.Annotations[EmailLabel]; !ok || !regExValidaton.MatchString(annotationValue) {
+	if annotationValue, ok := service.ObjectMeta.Annotations[EmailAnnotation]; !ok || !regExValidaton.MatchString(annotationValue) {
 		r.Log.Info("invalid email address: " + annotationValue)
 
 		return false
@@ -204,13 +205,13 @@ func (r *CustomIngressManagerReconciler) CreateOrUpdateIngressForService(service
 		Spec: v1beta1.IngressSpec{
 			TLS: []v1beta1.IngressTLS{
 				{
-					Hosts:      []string{service.ObjectMeta.Annotations[DomainLabel]},
+					Hosts:      []string{service.ObjectMeta.Annotations[DomainAnnotation]},
 					SecretName: CreateSecretName(service.Namespace),
 				},
 			},
 			Rules: []v1beta1.IngressRule{
 				{
-					Host: service.ObjectMeta.Annotations[DomainLabel],
+					Host: service.ObjectMeta.Annotations[DomainAnnotation],
 					IngressRuleValue: v1beta1.IngressRuleValue{
 						HTTP: &v1beta1.HTTPIngressRuleValue{
 							Paths: []v1beta1.HTTPIngressPath{
@@ -260,6 +261,14 @@ func (r *CustomIngressManagerReconciler) CreateOrUpdateIngressForService(service
 
 func (r *CustomIngressManagerReconciler) CreateOrUpdateClusterIssuerForService(service corev1.Service, existingClusterIssuer *v1alpha3.ClusterIssuer) error {
 	ctx := context.Background()
+
+	var letsencryptUrl string
+	if service.ObjectMeta.Annotations[EnvironmentLabel] == "production" {
+		letsencryptUrl = "https://acme-v02.api.letsencrypt.org/directory"
+	} else {
+		letsencryptUrl = "https://acme-staging-v02.api.letsencrypt.org/directory"
+	}
+
 	clusterIssuer := v1alpha3.ClusterIssuer{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: CreateClusterIssuerName(service.Name),
@@ -267,8 +276,8 @@ func (r *CustomIngressManagerReconciler) CreateOrUpdateClusterIssuerForService(s
 		Spec: v1alpha3.IssuerSpec{
 			IssuerConfig: v1alpha3.IssuerConfig{
 				ACME: &cmacme.ACMEIssuer{
-					Server: "https://acme-staging-v02.api.letsencrypt.org/directory",
-					Email:  service.ObjectMeta.Annotations[EmailLabel],
+					Server: letsencryptUrl,
+					Email:  service.ObjectMeta.Annotations[EmailAnnotation],
 					PrivateKey: cmeta1.SecretKeySelector{
 						LocalObjectReference: cmeta1.LocalObjectReference{
 							Name: CreateSecretName(service.Namespace),
