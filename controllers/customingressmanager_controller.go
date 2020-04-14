@@ -46,6 +46,7 @@ const (
 	CustomIngressLabel      = "feladat.banzaicloud.io/ingress"
 	CustomIngressLabelValue = "secure"
 	EnvironmentLabel        = "environment"
+	ClusterIssuerAnnotation = "cert-manager.io/cluster-issuer"
 )
 
 // CustomIngressManagerReconciler reconciles a CustomIngressManager object
@@ -66,7 +67,7 @@ func (r *CustomIngressManagerReconciler) Reconcile(req ctrl.Request) (ctrl.Resul
 
 	var service corev1.Service
 	if err := r.Get(ctx, req.NamespacedName, &service); err != nil {
-		log.Info("service notnd: " + req.Name + " in " + req.Namespace + " namespace")
+		log.Info("service not found: " + req.Name + " in " + req.Namespace + " namespace")
 
 		existingIngress, err := r.GetIngressByName(CreateIngressName(req.NamespacedName.Name), req.NamespacedName.Namespace)
 		if err != nil && !errors.IsNotFound(err) {
@@ -142,7 +143,7 @@ func (r *CustomIngressManagerReconciler) GetIngressByName(ingressName, namespace
 		return nil, err
 	}
 
-	r.Log.Info("Ingress already there")
+	r.Log.Info("ingress already there")
 
 	return &ingress, nil
 }
@@ -162,7 +163,7 @@ func (r *CustomIngressManagerReconciler) GetClusterIssuerByName(clusterIssuerNam
 		return nil, err
 	}
 
-	r.Log.Info("ClusterIssuer already there")
+	r.Log.Info("clusterissuer already there")
 
 	return &clusterIssuer, nil
 }
@@ -200,7 +201,7 @@ func (r *CustomIngressManagerReconciler) CreateOrUpdateIngressForService(service
 		ObjectMeta: metav1.ObjectMeta{
 			Name:        CreateIngressName(service.Name),
 			Namespace:   service.Namespace,
-			Annotations: map[string]string{"cert-manager.io/cluster-issuer": CreateClusterIssuerName(service.Name)},
+			Annotations: map[string]string{ClusterIssuerAnnotation: CreateClusterIssuerName(service.Name)},
 		},
 		Spec: v1beta1.IngressSpec{
 			TLS: []v1beta1.IngressTLS{
@@ -323,6 +324,8 @@ func (r *CustomIngressManagerReconciler) CreateOrUpdateClusterIssuerForService(s
 		// on deleted requests.
 		return client.IgnoreNotFound(err)
 	}
+
+	r.Log.Info("clusterissuer was created")
 
 	return nil
 }
