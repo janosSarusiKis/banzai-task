@@ -1,8 +1,3 @@
-# BanzaiCloud task
-
-Task description: https://docs.google.com/document/d/1LDMmUPPjV3NhrtGbXSfSdshPcZvv7Sft5m_-q_aVycM/edit#heading=h.gjc0w6xygrw7
-
-TL;DR:
 K8s operator which creates ingress and certificate for services with specified labels and annotations (Check test-service.yaml). Certificate is issued by Let's encrypt.
 
 ### Cert-manager setup:
